@@ -225,6 +225,7 @@ export interface ProviderDevice {
   temperatureC: number | null;
   humidityPct: number | null;
   batteryPct: number | null;
+  rssiDbm: number | null;
   switchState: 'on' | 'off' | null;
   switches: ('on' | 'off')[] | null;
   measuredAt: number | null;
@@ -249,6 +250,7 @@ function rowToDevice(r: Row): ProviderDevice {
     temperatureC: (r.temperature_c as number | null) ?? null,
     humidityPct: (r.humidity_pct as number | null) ?? null,
     batteryPct: (r.battery_pct as number | null) ?? null,
+    rssiDbm: (r.rssi_dbm as number | null) ?? null,
     switchState: (r.switch_state as 'on' | 'off' | null) ?? null,
     switches,
     measuredAt: (r.measured_at as number | null) ?? null,
@@ -263,8 +265,8 @@ export async function replaceProviderDevices(db: D1Database, provider: string, d
     stmts.push(
       db
         .prepare(
-          `INSERT INTO provider_devices (provider, device_id, name, uiid, model, online, kind, temperature_c, humidity_pct, battery_pct, switch_state, switches_json, measured_at, seen_at)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
+          `INSERT INTO provider_devices (provider, device_id, name, uiid, model, online, kind, temperature_c, humidity_pct, battery_pct, rssi_dbm, switch_state, switches_json, measured_at, seen_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)`,
         )
         .bind(
           provider,
@@ -277,6 +279,7 @@ export async function replaceProviderDevices(db: D1Database, provider: string, d
           d.temperatureC,
           d.humidityPct,
           d.batteryPct,
+          d.rssiDbm,
           d.switchState,
           d.switches ? JSON.stringify(d.switches) : null,
           d.measuredAt,

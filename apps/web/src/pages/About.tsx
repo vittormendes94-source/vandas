@@ -7,6 +7,9 @@ import type { LiveState } from '../hooks/useLive';
 import { ApiError, api, getAdminToken, setViewToken } from '../lib/api';
 import type { Meta } from '../lib/api';
 
+/** Pontes Zigbee SONOFF (UIID 66 ZBBridge, 168 ZBBridge-P, 243 ZBBridge-U): não medem nada, só conectam os sensores. */
+const BRIDGE_UIIDS = new Set([66, 168, 243]);
+
 const CALLBACK_REASON: Record<string, string> = {
   invalid_state: 'o pedido de conexão expirou ou foi reutilizado. Clique em "Conectar" de novo.',
   invalid_code: 'o eWeLink não devolveu um código válido.',
@@ -202,7 +205,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
                       </div>
                     </td>
                     <td>
-                      {d.kind === 'climate' ? <Chip kind="ok">Temperatura/umidade</Chip> : d.kind === 'switch' ? <Chip kind="plain">Liga/desliga</Chip> : <Chip kind="warn">Não suportado (UIID {d.uiid ?? '?'})</Chip>}
+                      {d.kind === 'climate' ? <Chip kind="ok">Temperatura/umidade</Chip> : d.kind === 'switch' ? <Chip kind="plain">Liga/desliga</Chip> : d.uiid !== null && BRIDGE_UIIDS.has(d.uiid) ? <Chip kind="plain">Ponte Zigbee</Chip> : <Chip kind="warn">Não suportado (UIID {d.uiid ?? '?'})</Chip>}
                     </td>
                     <td>{d.online === true ? <Chip kind="ok">Online</Chip> : d.online === false ? <Chip kind="bad">Offline</Chip> : '—'}</td>
                     <td className="num" style={{ textAlign: 'left' }}>
@@ -216,7 +219,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
             </table>
           </div>
         )}
-        {devices?.some((d) => d.kind === 'unsupported') && (
+        {devices?.some((d) => d.kind === 'unsupported' && !(d.uiid !== null && BRIDGE_UIIDS.has(d.uiid))) && (
           <p className="tiny mute" style={{ margin: '0.5rem 0 0' }}>
             “Não suportado”: o formato desse modelo não está na documentação pública do eWeLink e, por segurança, não é lido. Se for um sensor que você quer usar, envie o modelo e o número UIID para adicionarmos com teste.
           </p>

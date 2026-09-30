@@ -43,7 +43,7 @@ npm run dev       # compila a interface e abre o servidor em http://localhost:87
 
 | Comando | O que faz |
 |---|---|
-| `npm test` | Testes do núcleo (52) e do servidor (26) |
+| `npm test` | Testes do núcleo (52) e do servidor (29) |
 | `npm run typecheck` | TypeScript nos 3 pacotes |
 | `npm run build` | Compila a interface |
 | `npm run db:reset:local` | Apaga o banco local |
@@ -70,4 +70,4 @@ docs/           Integração eWeLink, publicação, API, custos e cotas, contrat
 
 ## Próximos passos
 
-Veja o plano de menor risco em [docs/SUGESTOES-E-PLANO.md](docs/SUGESTOES-E-PLANO.md). O primeiro passo é publicar e conectar o eWeLink usando o **Sonoff da bomba, que você já tem**. Só depois disso compre 1 sensor e 1 ponte.
+Instalação completa, com lista de compras: [docs/INSTALACAO.md](docs/INSTALACAO.md). Plano de menor risco: [docs/SUGESTOES-E-PLANO.md](docs/SUGESTOES-E-PLANO.md). O primeiro passo é publicar e conectar o eWeLink usando o **Sonoff da bomba, que você já tem**. Só depois disso compre 1 sensor e 1 ponte.

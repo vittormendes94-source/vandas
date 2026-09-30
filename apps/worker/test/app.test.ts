@@ -154,6 +154,33 @@ describe('parseThing (formatos documentados)', () => {
     const d = parseThing(climateThing('a48000aaaa', 'Sensor bancada', { t: 25.58, h: 52.11, battery: 100, trigTime: now - 60_000 }), now)!;
     expect(d).toMatchObject({ kind: 'climate', temperatureC: 25.58, humidityPct: 52.11, batteryPct: 100, measuredAt: now - 60_000, online: true, uiid: 1770 });
   });
+  it('SNZB-02WD (UIID 7033): valores diretos em °C e %, sinal e bateria — JSON real publicado por usuário', () => {
+    // params reais de um SNZB-02WD (github.com/AlexxIT/SonoffLAN/issues/1612)
+    const item = {
+      itemType: 1,
+      itemData: {
+        name: 'Temp bancada',
+        deviceid: 'a480069f8a',
+        online: true,
+        productModel: 'SNZB-02WD',
+        extra: { uiid: 7033 },
+        params: {
+          temperature: '22.8', temperatureF: '73', humidity: '61', trigTime: String(now - 120_000), battery: 100, tempUnit: 0,
+          humCorrection: '0', tempCorrection: '0', subDevRssi: -63, parentid: '10022783f5', subDevId: 'ffff20a40138c1a47033', fwVersion: '1.1.0',
+        },
+      },
+    };
+    expect(parseThing(item, now)).toMatchObject({ kind: 'climate', temperatureC: 22.8, humidityPct: 61, batteryPct: 100, rssiDbm: -63, measuredAt: now - 120_000, uiid: 7033 });
+  });
+  it('SNZB-02D (UIID 7014): ×100', () => {
+    const d = climateThing('a48000e', 'D', { t: 23.45, h: 70.5, trigTime: now });
+    d.itemData.extra.uiid = 7014;
+    expect(parseThing(d, now)).toMatchObject({ kind: 'climate', temperatureC: 23.45, humidityPct: 70.5 });
+  });
+  it('7033 com valor impossível (ex.: formato ×100 inesperado) é descartado, não gravado', () => {
+    const item = { itemType: 1, itemData: { deviceid: 'a480069f8b', name: 'X', online: true, extra: { uiid: 7033 }, params: { temperature: '2280', humidity: '6100', trigTime: String(now) } } };
+    expect(parseThing(item, now)).toMatchObject({ kind: 'climate', temperatureC: null, humidityPct: null });
+  });
   it('liga/desliga de 1 canal e de vários canais', () => {
     expect(parseThing(switchThing('1000aaaa', 'Bomba', { state: 'on' }), now)).toMatchObject({ kind: 'switch', switchState: 'on' });
     const multi = { itemType: 1, itemData: { deviceid: '1000bbbb', name: 'Duplo', online: true, extra: { uiid: 7 }, params: { switches: [{ switch: 'off', outlet: 1 }, { switch: 'on', outlet: 0 }] } } };

@@ -11,6 +11,8 @@
  *  - GET /v2/device/thing?num=0 com Authorization: Bearer {at} lista os dispositivos e seus `params`.
  *  - UIID 1770 (sensor Zigbee de temperatura/umidade): temperature e humidity = valor × 100 (texto),
  *    battery 0–100, trigTime = instante da última medição em ms.
+ *  - Outros sensores SONOFF não constam da documentação pública; seus formatos vêm do integrador comunitário
+ *    SonoffLAN (github.com/AlexxIT/SonoffLAN, core/devices.py) e de JSON real publicado por usuários — ver CLIMATE_FORMATS.
  *  - Liga/desliga: params.switch 'on'|'off' (1 canal) ou params.switches[{switch, outlet}] (vários canais).
  *  - App gratuito: 50 000 chamadas/mês por região; intervalo ≥ 500 ms e ≤ 300 chamadas/5 min por IP.
  *
@@ -37,8 +39,19 @@ const REGION_BASE: Record<string, string> = {
   us: 'https://us-apia.coolkit.cc',
   eu: 'https://eu-apia.coolkit.cc',
 };
-/** UIIDs de sensor de temperatura/umidade cujo formato está documentado e é aceito. */
-export const CLIMATE_UIIDS = new Set([1770]);
+/**
+ * Sensores de temperatura/umidade aceitos e a escala dos valores. Qualquer outro UIID fica "não suportado".
+ *  - 1770: documentação oficial (UIIDProtocol.md): ×100.
+ *  - 1771 e 7014 (SNZB-02D / variantes): ×100 — SonoffLAN devices.py (issues #1150, #1166).
+ *  - 7033 (SNZB-02WD): valores DIRETOS em °C e % ("22.8", "61"), já com a calibração do aparelho aplicada —
+ *    SonoffLAN devices.py (issues #1612 e #1857, com JSON real do aparelho).
+ */
+export const CLIMATE_FORMATS: ReadonlyMap<number, { scale: number; model: string }> = new Map([
+  [1770, { scale: 0.01, model: 'Zigbee (documentado)' }],
+  [1771, { scale: 0.01, model: 'SNZB-02D' }],
+  [7014, { scale: 0.01, model: 'SNZB-02D/02P' }],
+  [7033, { scale: 1, model: 'SNZB-02WD' }],
+]);
 const TOKEN_KEY = 'ewelink_tokens';
 const STATE_KEY = 'ewelink_state';
 const OAUTH_STATE_KEY = 'ewelink_oauth_state';
@@ -331,20 +344,24 @@ export function parseThing(item: ThingItem, seenAt: number): ProviderDevice | nu
     temperatureC: null,
     humidityPct: null,
     batteryPct: null,
+    rssiDbm: null,
     switchState: null,
     switches: null,
     measuredAt: null,
     seenAt,
   };
-  if (uiid !== null && CLIMATE_UIIDS.has(uiid)) {
-    const t = Number(p.temperature) / 100;
-    const h = Number(p.humidity) / 100;
+  const fmt = uiid !== null ? CLIMATE_FORMATS.get(uiid) : undefined;
+  if (fmt) {
+    const t = Number(p.temperature) * fmt.scale;
+    const h = Number(p.humidity) * fmt.scale;
     const trig = Number(p.trigTime);
     base.kind = 'climate';
     base.temperatureC = p.temperature !== undefined && isValidTemperatureC(t) ? Math.round(t * 100) / 100 : null;
     base.humidityPct = p.humidity !== undefined && isValidHumidityPct(h) ? Math.round(h * 100) / 100 : null;
     const bat = Number(p.battery);
     base.batteryPct = p.battery !== undefined && Number.isFinite(bat) && bat >= 0 && bat <= 100 ? bat : null;
+    const rssi = Number(p.subDevRssi);
+    base.rssiDbm = p.subDevRssi !== undefined && Number.isFinite(rssi) && rssi >= -130 && rssi <= 20 ? rssi : null;
     base.measuredAt = Number.isFinite(trig) && trig > 1_500_000_000_000 ? trig : null;
     return base;
   }
@@ -376,7 +393,7 @@ function readingFromDevice(sensorId: string, d: ProviderDevice, now: number, ret
     humidityPct: d.humidityPct,
     batteryPct: d.batteryPct,
     linkQuality: null,
-    rssiDbm: null,
+    rssiDbm: d.rssiDbm,
     source: PROVIDER,
   };
 }

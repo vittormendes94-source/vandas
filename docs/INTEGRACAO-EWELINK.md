@@ -15,6 +15,7 @@ Fonte: documentação oficial em `github.com/CoolKit-Technologies/eWeLink-API` (
 | Tokens | Acesso: 30 dias. Renovação: 60 dias. `POST /v2/user/refresh` renova os dois |
 | Marcas | Liberadas: **Sonoff** e CoolKit (os seus aparelhos são Sonoff) |
 | Sensor Zigbee (UIID 1770) | `temperature` e `humidity` = valor × 100; `battery`; **`trigTime` = instante da última medição (ms)** |
+| **SNZB-02WD (UIID 7033)** — *não está na documentação oficial* | Valores **diretos** (`"temperature": "22.8"`, `"humidity": "61"`), `trigTime`, `battery`, `subDevRssi`, `parentid` da ponte. Fonte: JSON real de um SNZB-02WD publicado no integrador comunitário SonoffLAN (issues #1612 e #1857) e o mapeamento dele (`core/devices.py`) |
 | Liga/desliga | `switch: "on"|"off"` (1 canal) ou `switches[{switch, outlet}]` |
 | Online | Cada aparelho vem com `online: true/false` |
 
@@ -33,7 +34,7 @@ Fonte: documentação oficial em `github.com/CoolKit-Technologies/eWeLink-API` (
 ## Pontos que só o teste real confirma
 
 1. Aprovação do cadastro de desenvolvedor pessoal em **dev.ewelink.cc**.
-2. Se o **SNZB-02WD** aparece como UIID 1770. Se aparecer com outro UIID, a tela mostra "Não suportado (UIID X)". Me envie o número e adiciono o formato com teste.
+2. Se o app **pessoal** enxerga os sensores Zigbee da ponte. O integrador comunitário os lê com as credenciais de outro app; a documentação diz que o app pessoal tem acesso a "tipos de dispositivo principais". O SNZB-02WD já é lido no formato UIID 7033, testado com o JSON real publicado. Se aparecer com outro UIID, a tela mostra "Não suportado (UIID X)"; me envie o número.
 3. De quanto em quanto tempo o SNZB-02WD atualiza o `trigTime`: ele envia por variação. Ajuste "atualizado/atrasado" em Configurações.
 4. Se o login da API convive com o app do celular na mesma conta. A documentação cita o erro 401 "conta logada por outro". Se houver conflito, a solução é uma conta eWeLink só para o sistema, com os aparelhos **compartilhados** para ela. O sistema lê aparelhos compartilhados (`itemType 2`).
 5. A região da sua conta (provavelmente `us`, Américas). Ela vem no retorno do login, então não é preciso configurar.

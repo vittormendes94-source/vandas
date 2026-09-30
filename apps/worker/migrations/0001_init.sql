@@ -40,6 +40,7 @@ CREATE TABLE provider_devices (
   temperature_c REAL,
   humidity_pct  REAL,
   battery_pct   REAL,
+  rssi_dbm      REAL,
   switch_state  TEXT CHECK (switch_state IN ('on', 'off')),
   switches_json TEXT,                       -- estados por canal (Sonoff multicanal)
   measured_at   INTEGER,
