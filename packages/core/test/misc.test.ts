@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { toCsv } from '../src/csv';
-import { downsampleForChart, findGaps, summarizePeriod } from '../src/history';
+import { downsampleForChart, findGaps, meanAcrossSensors, summarizePeriod, summarizeSeries } from '../src/history';
+import { derivePumpStatus } from '../src/pump';
 import { IngestReadingsBodySchema, prepareReadings } from '../src/ingest';
 import { AppConfigSchema, defaultConfig } from '../src/config';
 import { formatAge, localInputToUtc, startOfLocalDay, utcToLocalInput, zonedToUtc } from '../src/time';
-import { DEMO_SAMPLE_INTERVAL_MS, DEMO_SENSORS, demoIrrigationPeriods, generateDemoReadings, isDemoOutage } from '../src/simulator';
 import { DAY, HOUR, MIN } from '../src/time';
 
 describe('fuso horário America/Sao_Paulo', () => {
@@ -104,66 +104,66 @@ describe('contrato de ingestão', () => {
 });
 
 describe('configuração', () => {
-  it('a configuração padrão (demo e real) é válida', () => {
-    expect(AppConfigSchema.safeParse(defaultConfig('demo')).success).toBe(true);
-    expect(AppConfigSchema.safeParse(defaultConfig('real')).success).toBe(true);
+  it('a configuração padrão é válida e não traz limites de alerta pré-definidos', () => {
+    expect(AppConfigSchema.safeParse(defaultConfig()).success).toBe(true);
+    expect(defaultConfig().alerts).toEqual({ temperature: { min: null, max: null }, humidity: { min: null, max: null }, dpv: { min: null, max: null } });
+    expect(defaultConfig().pump).toEqual({ deviceId: null, outlet: 0 });
   });
-  it('modo real não traz limites de alerta pré-definidos', () => {
-    expect(defaultConfig('real').alerts).toMatchObject({ temperature: { min: null, max: null }, demonstrative: false });
-    expect(defaultConfig('demo').alerts.demonstrative).toBe(true);
-  });
-  it('rejeita sensor fora dos limites do orquidário, ids repetidos e limites invertidos', () => {
-    const c = defaultConfig('demo');
+  it('rejeita sensor fora dos limites, ids repetidos, limites invertidos e vínculos duplicados', () => {
+    const c = defaultConfig();
     expect(AppConfigSchema.safeParse({ ...c, sensors: [{ ...c.sensors[0]!, xM: 12.5 }] }).success).toBe(false);
     expect(AppConfigSchema.safeParse({ ...c, sensors: [{ ...c.sensors[0]!, yM: -1 }] }).success).toBe(false);
     expect(AppConfigSchema.safeParse({ ...c, sensors: [c.sensors[0]!, c.sensors[0]!] }).success).toBe(false);
     expect(AppConfigSchema.safeParse({ ...c, alerts: { ...c.alerts, temperature: { min: 30, max: 20 } } }).success).toBe(false);
     expect(AppConfigSchema.safeParse({ ...c, freshness: { freshMaxMin: 60, offlineAfterMin: 30 } }).success).toBe(false);
+    const dup = c.sensors.map((s) => ({ ...s, externalId: 'a1000abc' }));
+    expect(AppConfigSchema.safeParse({ ...c, sensors: dup }).success).toBe(false);
+    const pumpIsSensor = { ...c, sensors: [{ ...c.sensors[0]!, externalId: 'x1' }, c.sensors[1]!, c.sensors[2]!], pump: { deviceId: 'x1', outlet: 0 } };
+    expect(AppConfigSchema.safeParse(pumpIsSensor).success).toBe(false);
+    expect(AppConfigSchema.safeParse({ ...c, pump: { deviceId: 'id com espaço', outlet: 0 } }).success).toBe(false);
   });
 });
 
-describe('simulador de demonstração', () => {
-  const from = Date.UTC(2026, 8, 20, 3, 0);
-  const to = from + 7 * DAY;
-  const all = generateDemoReadings(from, to);
+describe('bomba: somente estado atual', () => {
+  const now = Date.UTC(2026, 8, 30, 12, 0);
+  it('mostra ligada/desligada só com comunicação confirmada e recente', () => {
+    expect(derivePumpStatus({ linked: true, seenAt: now - 2 * MIN, online: true, switchState: 'on' }, now)).toMatchObject({ comm: 'ok', state: 'on' });
+    expect(derivePumpStatus({ linked: true, seenAt: now - 2 * MIN, online: true, switchState: 'off' }, now)).toMatchObject({ comm: 'ok', state: 'off' });
+  });
+  it('Sonoff offline, integração parada, sem dados ou não vinculado → desconhecido (nunca "desligada")', () => {
+    expect(derivePumpStatus({ linked: true, seenAt: now - MIN, online: false, switchState: 'off' }, now)).toMatchObject({ comm: 'offline', state: 'unknown' });
+    expect(derivePumpStatus({ linked: true, seenAt: now - 30 * MIN, online: true, switchState: 'off' }, now)).toMatchObject({ comm: 'stale', state: 'unknown' });
+    expect(derivePumpStatus({ linked: true, seenAt: null, online: null, switchState: null }, now)).toMatchObject({ comm: 'no_data', state: 'unknown' });
+    expect(derivePumpStatus({ linked: false, seenAt: null, online: null, switchState: null }, now)).toMatchObject({ comm: 'not_linked', state: 'unknown' });
+    expect(derivePumpStatus({ linked: true, seenAt: now - MIN, online: null, switchState: 'on' }, now)).toMatchObject({ comm: 'offline', state: 'unknown' });
+  });
+});
 
-  it('é determinístico (mesma janela → mesmas leituras)', () => {
-    expect(generateDemoReadings(from, to)).toEqual(all);
+describe('média dos sensores ao longo do tempo', () => {
+  const b = (sensorId: string, min: number, t: number, h: number, n = 1) => ({ sensorId, t: min * MIN, tAvg: t, tMin: t, tMax: t, hAvg: h, hMin: h, hMax: h, n });
+  const ids = ['s1', 's2', 's3'];
+  it('cada sensor pesa igual, mesmo enviando mais leituras', () => {
+    const pts = meanAcrossSensors([b('s1', 1, 30, 50), b('s1', 2, 30, 50), b('s1', 3, 30, 50), b('s2', 4, 24, 70), b('s3', 5, 27, 60)], 'temperature', ids, 10 * MIN);
+    expect(pts).toHaveLength(1);
+    expect(pts[0]!.v).toBeCloseTo(27, 10);
+    expect(pts[0]).toMatchObject({ lo: 24, hi: 30, n: 3, t: 5 * MIN });
   });
-  it('gerar em partes equivale a gerar de uma vez', () => {
-    const cut = from + 3 * DAY + 17 * MIN;
-    expect([...generateDemoReadings(from, cut), ...generateDemoReadings(cut, to)]).toEqual(all);
+  it('intervalo sem todos os sensores vira lacuna (a média não salta quando um sensor falha)', () => {
+    const pts = meanAcrossSensors([b('s1', 1, 30, 50), b('s2', 2, 24, 70), b('s1', 11, 30, 50), b('s2', 12, 24, 70), b('s3', 13, 27, 60)], 'humidity', ids, 10 * MIN);
+    expect(pts.map((p) => p.t)).toEqual([15 * MIN]);
+    expect(pts[0]!.v).toBeCloseTo(60, 10);
   });
-  it('tem ≥ 7 dias, 3 setores e valores plausíveis com diferença entre setores', () => {
-    expect(new Set(all.map((r) => r.sensorId))).toEqual(new Set(DEMO_SENSORS.map((s) => s.id)));
-    const mean = (id: string, f: (r: (typeof all)[number]) => number) => {
-      const xs = all.filter((r) => r.sensorId === id).map(f);
-      return xs.reduce((a, b) => a + b, 0) / xs.length;
-    };
-    expect(mean('s1', (r) => r.temperatureC)).toBeGreaterThan(mean('s3', (r) => r.temperatureC) + 2);
-    expect(mean('s3', (r) => r.humidityPct)).toBeGreaterThan(mean('s1', (r) => r.humidityPct) + 8);
-    for (const r of all) {
-      expect(r.temperatureC).toBeGreaterThan(10);
-      expect(r.temperatureC).toBeLessThan(40);
-      expect(r.humidityPct).toBeGreaterThanOrEqual(20);
-      expect(r.humidityPct).toBeLessThanOrEqual(99);
-    }
+  it('agregados horários ponderam pelo número de leituras dentro do sensor', () => {
+    const pts = meanAcrossSensors([b('s1', 0, 20, 50, 1), b('s1', 30, 30, 50, 3)], 'temperature', ['s1'], 60 * MIN);
+    expect(pts[0]!.v).toBeCloseTo(27.5, 10);
   });
-  it('varia entre dia e noite', () => {
-    const s2 = all.filter((r) => r.sensorId === 's2');
-    const at = (h: number) => s2.filter((r) => Math.floor((((r.measuredAt - 3 * HOUR) % DAY) + DAY) % DAY / HOUR) === h).map((r) => r.temperatureC);
-    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
-    expect(avg(at(14))).toBeGreaterThan(avg(at(3)) + 4);
-  });
-  it('contém falhas de comunicação (lacunas) e irrigações', () => {
-    const s2 = all.filter((r) => r.sensorId === 's2').map((r) => ({ t: r.measuredAt }));
-    expect(findGaps(s2, 's2', 4 * DEMO_SAMPLE_INTERVAL_MS).length).toBeGreaterThan(0);
-    expect(demoIrrigationPeriods(from, to).length).toBeGreaterThanOrEqual(10);
-    expect([0, 1, 2].some((i) => isDemoOutage(i, from + 20 * HOUR))).toBeDefined();
-  });
-  it('leituras não têm duplicidade de (sensor, instante) e receivedAt ≥ measuredAt', () => {
-    const keys = new Set(all.map((r) => `${r.sensorId}@${r.measuredAt}`));
-    expect(keys.size).toBe(all.length);
-    for (const r of all) expect(r.receivedAt).toBeGreaterThan(r.measuredAt);
+  it('ignora sensores fora da lista e resume extremos', () => {
+    const pts = meanAcrossSensors([b('s1', 1, 20, 50), b('s1', 11, 26, 50), b('s1', 21, 23, 50), b('zz', 1, 99, 99)], 'temperature', ['s1'], 10 * MIN);
+    const s = summarizeSeries(pts)!;
+    expect(s.max.v).toBe(26);
+    expect(s.min.v).toBe(20);
+    expect(s.last.v).toBe(23);
+    expect(s.mean).toBeCloseTo(23, 10);
+    expect(summarizeSeries([])).toBeNull();
   });
 });

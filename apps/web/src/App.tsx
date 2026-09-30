@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fmtNum, formatAge, formatTimeSec, readingFromDto } from '@orq/core';
-import type { Dataset } from '@orq/core';
 import { LogoMark } from './components/ui';
 import { useHashRoute } from './hooks/useHashRoute';
 import type { Route } from './hooks/useHashRoute';
@@ -29,7 +28,6 @@ export function App() {
   const [tv, setTv] = useState(() => urlParams().tv);
   const [fullscreen, setFullscreen] = useState(false);
   const [route, go] = useHashRoute();
-  const [urlDataset] = useState(() => urlParams().dataset);
 
   useEffect(() => {
     api
@@ -47,26 +45,9 @@ export function App() {
     return () => document.removeEventListener('fullscreenchange', on);
   }, []);
 
-  const dataset: Dataset = useMemo(() => {
-    if (!meta) return 'demo';
-    const wanted = urlDataset ?? prefs.dataset ?? meta.defaultDataset;
-    return wanted === 'demo' && !meta.demoEnabled ? 'real' : wanted;
-  }, [meta, urlDataset, prefs.dataset]);
-
-  const live = useLive(dataset, prefs.pollSeconds);
+  const live = useLive(prefs.pollSeconds);
   const nowMs = useServerNow(live);
 
-  const setDataset = (d: Dataset) => {
-    const next = { ...prefs, dataset: d };
-    setPrefs(next);
-    savePrefs(next);
-    if (urlDataset) {
-      const u = new URL(location.href);
-      u.searchParams.delete('modo');
-      history.replaceState(null, '', u);
-      location.reload();
-    }
-  };
   const setPoll = (s: number) => {
     const next = { ...prefs, pollSeconds: s };
     setPrefs(next);
@@ -104,13 +85,6 @@ export function App() {
 
   return (
     <>
-      {dataset === 'demo' ? (
-        <div className="demo-banner" role="status">
-          DEMONSTRAÇÃO — DADOS SIMULADOS
-        </div>
-      ) : (
-        <div className="real-banner">Dados reais · nenhum dado simulado neste modo</div>
-      )}
 
       <header>
         <div className="topbar">
@@ -118,7 +92,7 @@ export function App() {
             <LogoMark className="brand__logo" />
             <div>
               <div className="brand__title">Orquidário Inteligente</div>
-              <div className="brand__sub">Vandas · 12 × 5 m · 60 m² · {live.data?.config.sensors.length ?? 3} pontos de monitoramento</div>
+              <div className="brand__sub">Vandas · 12 × 5 m · 60 m² · {live.data?.config.sensors.length ?? 3} sensores</div>
             </div>
           </div>
 
@@ -133,16 +107,6 @@ export function App() {
           )}
 
           <div className="toolbar" style={tv ? { marginLeft: 'auto' } : undefined}>
-            {meta.demoEnabled && !tv && (
-              <div className="seg" role="group" aria-label="Conjunto de dados">
-                <button type="button" aria-pressed={dataset === 'demo'} onClick={() => setDataset('demo')}>
-                  Demonstração
-                </button>
-                <button type="button" aria-pressed={dataset === 'real'} onClick={() => setDataset('real')}>
-                  Dados reais
-                </button>
-              </div>
-            )}
             <button type="button" className="btn btn--sm" onClick={() => setTv(!tv)} aria-pressed={tv}>
               {tv ? 'Sair do modo TV' : '📺 Modo TV'}
             </button>
@@ -194,10 +158,10 @@ export function App() {
 
       {live.error?.status === 401 && <ViewTokenGate />}
 
-      {activeRoute === 'painel' && <Dashboard live={live} nowMs={nowMs} dataset={dataset} tv={tv} onGoConfig={() => go('config')} />}
-      {activeRoute === 'historico' && <History dataset={dataset} config={live.data?.config ?? null} nowMs={nowMs} />}
-      {activeRoute === 'config' && <Settings dataset={dataset} live={live} meta={meta} />}
-      {activeRoute === 'dados' && <About dataset={dataset} live={live} meta={meta} />}
+      {activeRoute === 'painel' && <Dashboard live={live} nowMs={nowMs} tv={tv} onGoConfig={() => go('config')} onGoData={() => go('dados')} />}
+      {activeRoute === 'historico' && <History config={live.data?.config ?? null} nowMs={nowMs} />}
+      {activeRoute === 'config' && <Settings live={live} meta={meta} />}
+      {activeRoute === 'dados' && <About live={live} meta={meta} nowMs={nowMs} />}
     </>
   );
 }

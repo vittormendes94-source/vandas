@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { DAY, HOUR, downsampleForChart, fmtNum, formatDateTime, formatDayMonth, formatTime, startOfLocalDay } from '@orq/core';
-import type { IrrigationPeriod } from '@orq/core';
 
 export interface ChartPoint {
   t: number;
@@ -23,12 +22,10 @@ interface Props {
   to: number;
   unit: string;
   digits?: number;
-  irrigation?: IrrigationPeriod[];
   /** Intervalo acima do qual a linha é interrompida (sem preencher períodos sem dados). */
   gapMs: number;
   limits?: { min: number | null; max: number | null };
   height?: number;
-  nowMs: number;
   minSpan?: number;
   label: string;
 }
@@ -42,10 +39,10 @@ function niceStep(span: number, target = 5): number {
   return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * pow;
 }
 
-function xTicks(from: number, to: number): { t: number; label: string }[] {
+function xTicks(from: number, to: number, maxTicks = 8): { t: number; label: string }[] {
   const span = to - from;
   const steps = [HOUR, 2 * HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY];
-  const step = steps.find((s) => span / s <= 8) ?? 7 * DAY;
+  const step = steps.find((s) => span / s <= maxTicks) ?? 7 * DAY;
   const out: { t: number; label: string }[] = [];
   let t = startOfLocalDay(from);
   while (t < from) t += step;
@@ -56,7 +53,7 @@ function xTicks(from: number, to: number): { t: number; label: string }[] {
   return out;
 }
 
-export function LineChart({ series, from, to, unit, digits = 1, irrigation = [], gapMs, limits, height = 230, nowMs, minSpan = 2, label }: Props) {
+export function LineChart({ series, from, to, unit, digits = 1, gapMs, limits, height = 230, minSpan = 2, label }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
   const [hover, setHover] = useState<{ x: number; t: number } | null>(null);
@@ -102,7 +99,7 @@ export function LineChart({ series, from, to, unit, digits = 1, irrigation = [],
   const ih = H - M.t - M.b;
   const x = (t: number) => M.l + ((t - from) / (to - from)) * iw;
   const y = (v: number) => M.t + (1 - (v - yMin) / (yMax - yMin || 1)) * ih;
-  const xt = useMemo(() => xTicks(from, to), [from, to]);
+  const xt = useMemo(() => xTicks(from, to, Math.max(3, Math.min(8, Math.floor(iw / 60)))), [from, to, iw]);
 
   const paths = drawn.map((s) => {
     const segs: ChartPoint[][] = [];
@@ -153,9 +150,6 @@ export function LineChart({ series, from, to, unit, digits = 1, irrigation = [],
       })
     : [];
 
-  const irrBands = irrigation
-    .map((p) => ({ a: Math.max(from, p.startedAt), b: Math.min(to, p.endedAt ?? nowMs) }))
-    .filter((p) => p.b > p.a);
 
   return (
     <div className="chart" ref={wrapRef}>
@@ -167,9 +161,6 @@ export function LineChart({ series, from, to, unit, digits = 1, irrigation = [],
               {fmtNum(v, step >= 1 ? 0 : step >= 0.1 ? 1 : 2)}
             </text>
           </g>
-        ))}
-        {irrBands.map((b, i) => (
-          <rect key={i} className="irr-band" x={x(b.a)} y={M.t} width={Math.max(2, x(b.b) - x(b.a))} height={ih} />
         ))}
         {limits?.min != null && limits.min >= yMin && limits.min <= yMax && <line className="limit" x1={M.l} x2={W - M.r} y1={y(limits.min)} y2={y(limits.min)} />}
         {limits?.max != null && limits.max >= yMin && limits.max <= yMax && <line className="limit" x1={M.l} x2={W - M.r} y1={y(limits.max)} y2={y(limits.max)} />}

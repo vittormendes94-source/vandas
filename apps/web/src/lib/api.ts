@@ -1,4 +1,4 @@
-import type { AppConfig, Dataset, HistoryResponse, LiveResponse } from '@orq/core';
+import type { AppConfig, HistoryResponse, LiveResponse, ProviderDeviceDto } from '@orq/core';
 
 export class ApiError extends Error {
   constructor(
@@ -89,8 +89,6 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
 }
 
 export interface Meta {
-  demoEnabled: boolean;
-  defaultDataset: Dataset;
   viewProtected: boolean;
   writeAuthConfigured: boolean;
   ingestAuthConfigured: boolean;
@@ -98,16 +96,15 @@ export interface Meta {
 
 export const api = {
   meta: (signal?: AbortSignal) => request<Meta>('/api/meta', { signal }),
-  live: (dataset: Dataset, signal?: AbortSignal) => request<LiveResponse>(`/api/live?dataset=${dataset}`, { signal }),
-  history: (
-    dataset: Dataset,
-    from: number,
-    to: number,
-    opts: { res?: 'auto' | 'raw' | 'hourly'; full?: boolean; signal?: AbortSignal } = {},
-  ) =>
+  live: (signal?: AbortSignal) => request<LiveResponse>('/api/live', { signal }),
+  history: (from: number, to: number, opts: { res?: 'auto' | 'raw' | 'hourly'; full?: boolean; signal?: AbortSignal } = {}) =>
     request<HistoryResponse>(
-      `/api/history?dataset=${dataset}&from=${encodeURIComponent(new Date(from).toISOString())}&to=${encodeURIComponent(new Date(to).toISOString())}&res=${opts.res ?? 'auto'}${opts.full ? '&detail=full' : ''}`,
+      `/api/history?from=${encodeURIComponent(new Date(from).toISOString())}&to=${encodeURIComponent(new Date(to).toISOString())}&res=${opts.res ?? 'auto'}${opts.full ? '&detail=full' : ''}`,
       { signal: opts.signal },
     ),
-  saveConfig: (dataset: Dataset, config: AppConfig) => request<AppConfig>(`/api/config?dataset=${dataset}`, { method: 'PUT', body: config, admin: true }),
+  saveConfig: (config: AppConfig) => request<AppConfig>('/api/config', { method: 'PUT', body: config, admin: true }),
+  ewelinkDevices: (signal?: AbortSignal) => request<{ devices: ProviderDeviceDto[] }>('/api/ewelink/devices', { signal }),
+  ewelinkAuthorize: () => request<{ url: string }>('/api/ewelink/authorize', { method: 'POST', body: {}, admin: true }),
+  ewelinkPoll: () => request<{ ran: boolean; reason?: string; devices?: number; inserted?: number }>('/api/ewelink/poll', { method: 'POST', body: {}, admin: true }),
+  ewelinkDisconnect: () => request<{ ok: boolean }>('/api/ewelink/disconnect', { method: 'POST', body: {}, admin: true }),
 };

@@ -6,7 +6,7 @@ export function redact(text: string, env?: Partial<Env>): string {
     .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1[REDIGIDO]')
     .replace(/([?&](?:k|token|password|senha|secret)=)[^&\s]+/gi, '$1[REDIGIDO]')
     .replace(/("(?:password|senha|token|secret|authorization)"\s*:\s*")[^"]*(")/gi, '$1[REDIGIDO]$2');
-  for (const secret of [env?.VIEW_TOKEN, env?.ADMIN_TOKEN, env?.INGEST_TOKEN]) {
+  for (const secret of [env?.VIEW_TOKEN, env?.ADMIN_TOKEN, env?.INGEST_TOKEN, env?.EWELINK_APP_SECRET, env?.EWELINK_APP_ID]) {
     if (secret && secret.length >= 6) out = out.split(secret).join('[REDIGIDO]');
   }
   return out;

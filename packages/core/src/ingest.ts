@@ -32,17 +32,6 @@ export const IngestReadingsBodySchema = z.strictObject({
 export type IngestReading = z.infer<typeof IngestReadingSchema>;
 export type IngestReadingsBody = z.infer<typeof IngestReadingsBodySchema>;
 
-export const IngestRelayBodySchema = z.strictObject({
-  source: sourceName,
-  /** Sonoff pode ter mais de um; hoje há um único circuito de irrigação. */
-  deviceId: sensorId.default('pump'),
-  state: z.enum(['on', 'off']).optional(),
-  measuredAt: z.iso.datetime({ offset: true }).optional(),
-  /** Estado de conexão do dispositivo informado pela origem, se houver. */
-  online: z.boolean().optional(),
-});
-export type IngestRelayBody = z.infer<typeof IngestRelayBodySchema>;
-
 export type RejectReason = 'unknown_sensor' | 'future_timestamp' | 'too_old';
 export type ReadingOutcome =
   | { index: number; status: 'accepted' }

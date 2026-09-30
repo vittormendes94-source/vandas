@@ -1,9 +1,8 @@
-import { ROOM, fmtNum, formatDateTime } from '@orq/core';
-import type { AppConfig, Dataset, RelayStatusDto } from '@orq/core';
-import { Chip, OriginChip } from './ui';
+import { ROOM, formatAge, formatDateTime } from '@orq/core';
+import type { AppConfig, PumpDto } from '@orq/core';
+import { Chip } from './ui';
 
-export type PlanState = 'on' | 'off' | 'lost' | 'nodata';
-export type SimOverride = 'auto' | 'on' | 'off' | 'lost';
+export type PlanState = 'on' | 'off' | 'lost';
 
 const U = 10; // 1 m = 10 unidades do SVG
 
@@ -20,61 +19,39 @@ function pipes(spr: AppConfig['irrigation']['sprinklers']): string[] {
   const ys = rows.map((r) => r.y);
   const mid = (Math.min(...ys) + Math.max(...ys)) / 2;
   const out = [`M0 ${mid * U} L${trunkX * U} ${mid * U}`, `M${trunkX * U} ${Math.min(...ys) * U} L${trunkX * U} ${Math.max(...ys) * U}`];
-  for (const r of rows) {
-    const xs = [...r.xs].sort((a, b) => a - b);
-    out.push(`M${trunkX * U} ${r.y * U} L${xs[xs.length - 1]! * U} ${r.y * U}`);
-  }
+  for (const r of rows) out.push(`M${trunkX * U} ${r.y * U} L${Math.max(...r.xs) * U} ${r.y * U}`);
   return out;
 }
 
-const STATE_TEXT: Record<PlanState, { label: string; kind: 'ok' | 'warn' | 'bad' | 'plain'; detail: string }> = {
-  on: { label: 'Relé ligado', kind: 'ok', detail: 'Estado informado pelo controlador como ligado.' },
-  off: { label: 'Relé desligado', kind: 'plain', detail: 'Estado informado pelo controlador como desligado.' },
-  lost: { label: 'Sem comunicação com o controlador', kind: 'bad', detail: 'Não se sabe se a bomba está ligada ou desligada.' },
-  nodata: { label: 'Sem dados do controlador', kind: 'warn', detail: 'Nenhum estado do relé foi recebido ainda.' },
-};
-
-interface Props {
-  config: AppConfig;
-  dataset: Dataset;
-  state: PlanState;
-  relay: RelayStatusDto | null;
-  simulated: boolean;
-  override: SimOverride;
-  onOverride: (o: SimOverride) => void;
-  /** Texto do instante (replay). */
-  instantLabel?: string;
-  lastPeriodText?: string | null;
+export function pumpView(p: PumpDto, nowMs: number): { plan: PlanState; label: string; kind: 'ok' | 'warn' | 'bad' | 'plain'; detail: string } {
+  const seen = p.seenAt ? ` · confirmado ${formatAge(nowMs - Date.parse(p.seenAt))}` : '';
+  if (p.comm === 'ok' && p.state === 'on') return { plan: 'on', label: 'Bomba ligada', kind: 'ok', detail: `Estado informado pelo Sonoff${seen}.` };
+  if (p.comm === 'ok' && p.state === 'off') return { plan: 'off', label: 'Bomba desligada', kind: 'plain', detail: `Estado informado pelo Sonoff${seen}.` };
+  if (p.comm === 'not_linked') return { plan: 'lost', label: 'Bomba não vinculada', kind: 'warn', detail: 'Escolha o Sonoff da bomba em Configurações depois de conectar o eWeLink.' };
+  if (p.comm === 'no_data') return { plan: 'lost', label: 'Aguardando o Sonoff', kind: 'warn', detail: 'O Sonoff vinculado ainda não apareceu na leitura do eWeLink.' };
+  if (p.comm === 'offline') return { plan: 'lost', label: 'Sonoff sem comunicação', kind: 'bad', detail: 'O eWeLink informa o Sonoff como offline: não se sabe se a bomba está ligada ou desligada.' };
+  return { plan: 'lost', label: 'Sem leitura recente', kind: 'bad', detail: `A leitura do eWeLink está parada${p.seenAt ? ` desde ${formatDateTime(Date.parse(p.seenAt))}` : ''}: estado desconhecido.` };
 }
 
-export function IrrigationCard({ config, dataset, state, relay, simulated, override, onOverride, instantLabel, lastPeriodText }: Props) {
+export function IrrigationCard({ config, pump, nowMs }: { config: AppConfig; pump: PumpDto; nowMs: number }) {
   const spr = config.irrigation.sprinklers;
-  const t = STATE_TEXT[state];
+  const v = pumpView(pump, nowMs);
   const paths = pipes(spr);
   return (
-    <section className="card" aria-label="Planta da irrigação">
+    <section className="card" aria-label="Irrigação">
       <div className="card__head">
         <div>
-          <h2 className="card__title">Planta da irrigação</h2>
+          <h2 className="card__title">Irrigação</h2>
           <div className="card__sub hide-tv">
-            {ROOM.lengthM} × {ROOM.widthM} m · circuito único · {spr.length} aspersor(es){config.irrigation.layoutProvisional ? ' ilustrativos (posições e alcance provisórios)' : ''}
+            {ROOM.lengthM} × {ROOM.widthM} m · {spr.length} aspersor(es){config.irrigation.layoutProvisional ? ' · posições ilustrativas' : ''}
+            {pump.deviceName ? ` · ${pump.deviceName}` : ''}
           </div>
         </div>
-        <div className="toolbar">
-          <OriginChip dataset={dataset} />
-          {simulated && <Chip kind="sim">Estado simulado na tela</Chip>}
-          {config.irrigation.layoutProvisional && <Chip kind="warn">Layout provisório</Chip>}
-        </div>
+        <Chip kind={v.kind}>{v.label}</Chip>
       </div>
 
       <div className="plan-wrap">
-        <div className="relay-status">
-          <Chip kind={t.kind}>{t.label}</Chip>
-          <span className="small dim">{t.detail}</span>
-          {instantLabel && <span className="small mute">{instantLabel}</span>}
-        </div>
-
-        <svg className="plan" data-state={state} viewBox={`-2 -2 ${ROOM.lengthM * U + 4} ${ROOM.widthM * U + 4}`} role="img" aria-label={`Planta de irrigação: ${t.label}`}>
+        <svg className="plan" data-state={v.plan} viewBox={`-2 -2 ${ROOM.lengthM * U + 4} ${ROOM.widthM * U + 4}`} role="img" aria-label={`Planta de irrigação: ${v.label}`}>
           <rect x={0} y={0} width={ROOM.lengthM * U} height={ROOM.widthM * U} fill="none" stroke="#2a4250" strokeWidth={0.4} />
           {Array.from({ length: ROOM.lengthM - 1 }, (_, i) => (
             <line key={`gx${i}`} x1={(i + 1) * U} x2={(i + 1) * U} y1={0} y2={ROOM.widthM * U} stroke="rgba(255,255,255,0.05)" strokeWidth={0.2} />
@@ -100,60 +77,10 @@ export function IrrigationCard({ config, dataset, state, relay, simulated, overr
               </text>
             </g>
           ))}
-          <text x={ROOM.lengthM * U} y={-0.6} textAnchor="end" fill="#7a9199" fontSize={1.8}>
-            12 m
-          </text>
-          <text x={-0.6} y={ROOM.widthM * U} textAnchor="end" fill="#7a9199" fontSize={1.8} transform={`rotate(-90 -0.6 ${ROOM.widthM * U})`}>
-            5 m
-          </text>
         </svg>
-
         <p className="small dim" style={{ margin: 0 }}>
-          <strong style={{ color: 'var(--text)' }}>Estado informado pelo controlador. Sem sensor de vazão, não há confirmação de passagem de água.</strong>
+          {v.detail} Sem sensor de vazão, não há confirmação de passagem de água.
         </p>
-        <p className="tiny mute hide-tv" style={{ margin: 0 }}>
-          Posições, alcance e traçado das tubulações são ilustrativos (não medidos). A animação segue o estado do relé, não o fluxo de água.
-        </p>
-
-        <div className="split hide-tv" style={{ gap: '0.5rem' }}>
-          <div className="small dim">
-            {config.irrigation.informedSchedule && <div>{config.irrigation.informedSchedule}</div>}
-            {relay?.lastStateAt && <div>Último estado informado: {formatDateTime(Date.parse(relay.lastStateAt))}</div>}
-            {relay?.lastSeenAt && <div>Última mensagem do controlador: {formatDateTime(Date.parse(relay.lastSeenAt))}</div>}
-            {lastPeriodText && <div>{lastPeriodText}</div>}
-            <div>
-              Alcance ilustrativo: {fmtNum(spr[0]?.radiusM ?? 0, 1)} m
-            </div>
-          </div>
-          <div style={{ display: 'grid', gap: '0.4rem', justifyItems: 'start' }}>
-            <button className="btn btn--sm" type="button" disabled title="Esta versão é somente de monitoramento: nenhum comando é enviado a equipamentos reais.">
-              Ligar / desligar bomba
-            </button>
-            <span className="tiny mute">Indisponível: versão somente de monitoramento. Comandos exigirão validação do modelo do Sonoff e aprovação específica.</span>
-          </div>
-        </div>
-
-        {dataset === 'demo' && (
-          <div className="notice notice--sim hide-tv">
-            <div className="small" style={{ marginBottom: '0.4rem' }}>
-              <strong>Demonstração do estado do Sonoff</strong> — controle apenas visual, não envia comandos a nenhum equipamento.
-            </div>
-            <div className="seg" role="group" aria-label="Simular estado do relé (somente na demonstração)">
-              {(
-                [
-                  ['auto', 'Automático (histórico simulado)'],
-                  ['on', 'Simular ligado'],
-                  ['off', 'Desligado'],
-                  ['lost', 'Sem sinal'],
-                ] as [SimOverride, string][]
-              ).map(([v, l]) => (
-                <button key={v} type="button" aria-pressed={override === v} onClick={() => onOverride(v)}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </section>
   );

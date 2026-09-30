@@ -23,15 +23,16 @@ database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
 [vars]
-# "false" desativa o conjunto de demonstração (recomendado quando só houver dados reais).
-DEMO_ENABLED = "true"
-# Conjunto exibido por padrão: "demo" ou "real".
-DEFAULT_DATASET = "demo"
+# URL de retorno cadastrada no app eWeLink (dev.ewelink.cc). Em produção: https://<seu-endereço>/api/ewelink/callback
+EWELINK_REDIRECT_URL = "http://localhost:8787/api/ewelink/callback"
+# Opcional: data de vencimento (AAAA-MM-DD) da credencial pessoal eWeLink (válida 1 ano) para aviso antecipado.
+EWELINK_APP_EXPIRES_AT = ""
 
-# Tarefa agendada: avança a demonstração, consulta adaptadores reais habilitados e aplica retenção diária.
-# O plano gratuito permite poucos cron triggers por conta; remova esta seção se não quiser nenhum.
+# Tarefa agendada: lê o eWeLink a cada 2 min (~21,6 mil chamadas/mês; a cota gratuita do app é 50 mil/mês)
+# e aplica a retenção uma vez por dia.
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/2 * * * *"]
 
-# Segredos NÃO ficam aqui. Em produção: `wrangler secret put ADMIN_TOKEN` (idem INGEST_TOKEN, VIEW_TOKEN).
+# Segredos NÃO ficam aqui. Em produção: `wrangler secret put ADMIN_TOKEN` (idem VIEW_TOKEN, INGEST_TOKEN,
+# EWELINK_APP_ID, EWELINK_APP_SECRET).
 # Em desenvolvimento: arquivo .dev.vars (veja .dev.vars.example).

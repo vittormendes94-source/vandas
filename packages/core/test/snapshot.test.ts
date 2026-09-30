@@ -5,7 +5,12 @@ import { MIN } from '../src/time';
 import type { Reading } from '../src/types';
 
 const NOW = Date.UTC(2026, 8, 30, 17, 0, 0);
-const cfg = defaultConfig('demo'); // fresh ≤ 15 min, offline > 60 min
+// Configuração de teste explícita: fresh ≤ 15 min, offline > 60 min, limites de alerta definidos pelo teste.
+const cfg = {
+  ...defaultConfig(),
+  freshness: { freshMaxMin: 15, offlineAfterMin: 60 },
+  alerts: { temperature: { min: 18, max: 32 }, humidity: { min: 50, max: 85 }, dpv: { min: null, max: null } },
+};
 
 const reading = (sensorId: string, ageMin: number, t: number, h: number): Reading => ({
   sensorId,
@@ -115,7 +120,7 @@ describe('alertas configuráveis', () => {
       ['s2', reading('s2', 40, 40, 10)], // atrasado: ignorado
     ]);
     const snap = buildSnapshot(cfg, latest, NOW);
-    const none = { temperature: { min: null, max: null }, humidity: { min: null, max: null }, dpv: { min: null, max: null }, demonstrative: false };
+    const none = { temperature: { min: null, max: null }, humidity: { min: null, max: null }, dpv: { min: null, max: null } };
     expect(evaluateAlerts(snap, none)).toEqual([]);
     const hits = evaluateAlerts(snap, cfg.alerts);
     expect(hits.map((h) => `${h.sensorId}:${h.kind}:${h.direction}`).sort()).toEqual(['s1:humidity:below', 's1:temperature:above']);

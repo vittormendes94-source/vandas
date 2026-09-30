@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AppConfigSchema, ROOM } from '@orq/core';
-import type { AppConfig, Dataset, Limits } from '@orq/core';
+import type { AppConfig, Limits, ProviderDeviceDto } from '@orq/core';
 import { PlanEditor } from '../components/PlanEditor';
 import { Chip, Notice } from '../components/ui';
 import type { LiveState } from '../hooks/useLive';
@@ -47,7 +47,7 @@ function Section({ title, sub, children, chip }: { title: string; sub?: string; 
   );
 }
 
-export function Settings({ dataset, live, meta }: { dataset: Dataset; live: LiveState & { refresh: () => void }; meta: Meta }) {
+export function Settings({ live, meta }: { live: LiveState & { refresh: () => void }; meta: Meta }) {
   const base = live.data?.config ?? null;
   const [draft, setDraft] = useState<Draft | null>(base);
   const [saving, setSaving] = useState(false);
@@ -60,7 +60,14 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
     if (base) setDraft(base);
     // Recarrega o rascunho quando a revisão do servidor muda (após salvar ou conflito).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base?.revision, dataset]);
+  }, [base?.revision]);
+
+  const [devices, setDevices] = useState<ProviderDeviceDto[] | null>(null);
+  useEffect(() => {
+    const ac = new AbortController();
+    api.ewelinkDevices(ac.signal).then((r) => setDevices(r.devices)).catch(() => setDevices([]));
+    return () => ac.abort();
+  }, []);
 
   const validation = useMemo(() => (draft ? AppConfigSchema.safeParse(draft) : null), [draft]);
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(base), [draft, base]);
@@ -77,7 +84,6 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
   const setLimit = (k: 'temperature' | 'humidity' | 'dpv', side: keyof Limits, v: number | null) =>
     set((d) => {
       d.alerts[k][side] = v;
-      d.alerts.demonstrative = false; // ao editar, deixam de ser valores de demonstração
     });
 
   const issues = validation && !validation.success ? validation.error.issues.slice(0, 6).map((i) => `${i.path.join('.') || 'config'}: ${i.message}`) : [];
@@ -86,7 +92,7 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
     setSaving(true);
     setMsg(null);
     try {
-      await api.saveConfig(dataset, draft);
+      await api.saveConfig(draft);
       setMsg({ kind: 'ok', text: 'Configuração salva.' });
       live.refresh();
     } catch (e) {
@@ -108,7 +114,6 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
     }
   };
 
-  const demo = dataset === 'demo';
   const next = (arr: { id: string }[], prefix: string) => {
     for (let i = 1; i < 100; i++) if (!arr.some((a) => a.id === `${prefix}${i}`)) return `${prefix}${i}`;
     return `${prefix}${Date.now()}`;
@@ -116,10 +121,6 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
 
   return (
     <main className="container">
-      <Notice kind={demo ? 'sim' : undefined}>
-        Editando as configurações do conjunto <strong>{demo ? 'DEMONSTRAÇÃO (dados simulados)' : 'DADOS REAIS'}</strong>. Os dois conjuntos têm configurações independentes.
-      </Notice>
-
       <Section title="Acesso para editar" sub="Gravar configuração exige o token de administração do servidor. Ele nunca é exibido nem enviado a terceiros." chip={hasToken ? <Chip kind="ok">Token informado</Chip> : <Chip kind="warn">Somente leitura</Chip>}>
         {!meta.writeAuthConfigured && (
           <Notice kind="warn">
@@ -183,32 +184,35 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
                   <input type="checkbox" checked={s.positionProvisional} onChange={(e) => set((d) => void (d.sensors[i]!.positionProvisional = e.target.checked))} />
                   Provisória
                 </label>
-                {!demo && draft.sensors.length > 1 ? (
+                {draft.sensors.length > 1 ? (
                   <button className="btn btn--sm btn--danger" type="button" onClick={() => set((d) => void d.sensors.splice(i, 1))} aria-label={`Remover ${s.name}`}>
                     Remover
                   </button>
                 ) : (
                   <span />
                 )}
-                {!demo && (
-                  <label className="field" style={{ gridColumn: '1 / -1' }}>
-                    <span>ID do dispositivo no provedor (opcional, ex.: deviceid do eWeLink)</span>
-                    <input className="input" value={s.externalId ?? ''} maxLength={80} onChange={(e) => set((d) => void (d.sensors[i]!.externalId = e.target.value || null))} />
-                  </label>
-                )}
+                <label className="field" style={{ gridColumn: '1 / -1' }}>
+                  <span>Dispositivo eWeLink deste sensor</span>
+                  <DeviceSelect
+                    devices={devices}
+                    kind="climate"
+                    value={s.externalId ?? null}
+                    taken={[...draft.sensors.filter((_, j) => j !== i).map((x) => x.externalId ?? ''), draft.pump.deviceId ?? '']}
+                    onChange={(v) => set((d) => void (d.sensors[i]!.externalId = v))}
+                  />
+                </label>
               </div>
             ))}
-            {!demo && draft.sensors.length < 8 && (
+            {draft.sensors.length < 8 && (
               <button className="btn btn--sm" type="button" onClick={() => set((d) => void d.sensors.push({ id: next(d.sensors, 's'), name: `Sensor ${d.sensors.length + 1}`, xM: 6, yM: 2.5, positionProvisional: true, externalId: null }))}>
                 + Adicionar sensor
               </button>
             )}
-            {demo && <p className="tiny mute">Na demonstração os 3 sensores simulados são fixos; você pode renomeá-los e movê-los.</p>}
           </div>
         </div>
       </Section>
 
-      <Section title="Aspersores (irrigação)" sub="A quantidade e as posições reais ainda são desconhecidas: a demonstração usa seis aspersores ilustrativos. Edite conforme a instalação." chip={draft.irrigation.layoutProvisional ? <Chip kind="warn">Layout provisório</Chip> : <Chip kind="ok">Layout informado</Chip>}>
+      <Section title="Aspersores (irrigação)" sub="Desenho de referência da planta: ajuste quantidade e posições conforme a instalação real." chip={draft.irrigation.layoutProvisional ? <Chip kind="warn">Layout provisório</Chip> : <Chip kind="ok">Layout informado</Chip>}>
         <div className="split">
           <PlanEditor
             kind="sprinkler"
@@ -249,17 +253,19 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
             </label>
           </div>
         </div>
-        <div className="form-grid" style={{ marginTop: '0.9rem' }}>
-          <label className="field" style={{ gridColumn: '1 / -1' }}>
-            <span>Rega informada (texto livre — não é lido como agenda)</span>
-            <input className="input" value={draft.irrigation.informedSchedule ?? ''} maxLength={200} onChange={(e) => set((d) => void (d.irrigation.informedSchedule = e.target.value || null))} />
+      </Section>
+
+      <Section title="Bomba (Sonoff)" sub="O painel mostra só se a bomba está ligada ou desligada agora, conforme o Sonoff informa ao eWeLink. Nada é registrado em histórico e nenhum comando é enviado.">
+        <div className="form-grid">
+          <label className="field">
+            <span>Sonoff da bomba</span>
+            <DeviceSelect devices={devices} kind="switch" value={draft.pump.deviceId} taken={draft.sensors.map((x) => x.externalId ?? '')} onChange={(v) => set((d) => void (d.pump.deviceId = v))} />
           </label>
-          <Num label="Relé sem comunicação após" unit="min" nullable min={1} value={draft.irrigation.relayFreshMaxMin} onChange={(v) => set((d) => void (d.irrigation.relayFreshMaxMin = v))} hint="Vazio = não inferir perda de comunicação pelo tempo (use se o Sonoff só reporta quando muda de estado)." />
-          <Num label="Janela da comparação antes/depois" unit="min" min={5} max={240} value={draft.irrigation.comparisonWindowMin} onChange={(v) => set((d) => void (d.irrigation.comparisonWindowMin = v as number))} />
+          <Num label="Canal" min={0} max={3} value={draft.pump.outlet} onChange={(v) => set((d) => void (d.pump.outlet = (v as number) || 0))} hint="0 = primeiro canal. Só muda em Sonoff de vários canais." />
         </div>
       </Section>
 
-      <Section title="Frescor dos dados e replay" sub="Ajuste conforme a frequência EFETIVA de envio dos sensores (ainda não observada). Não se promete nova medição a cada segundo.">
+      <Section title="Frescor dos dados e replay" sub="O sistema lê o eWeLink a cada 2 min, mas cada sensor só envia leitura nova quando o valor muda (ou periodicamente). Ajuste depois de observar a frequência real dos seus sensores.">
         <div className="form-grid">
           <Num label="Leitura “atualizada” até" unit="min" min={1} value={draft.freshness.freshMaxMin} onChange={(v) => set((d) => void (d.freshness.freshMaxMin = v as number))} hint="Acima disso o sensor fica ATRASADO e sai das médias e do mapa." />
           <Num label="“Sem comunicação” após" unit="min" min={1} value={draft.freshness.offlineAfterMin} onChange={(v) => set((d) => void (d.freshness.offlineAfterMin = v as number))} hint="Deve ser maior que o limite de atualizado." />
@@ -268,8 +274,7 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
         </div>
       </Section>
 
-      <Section title="Limites de alerta" sub="Você define os limites; o sistema não impõe faixas agronômicas universais. Deixe em branco para desativar." chip={draft.alerts.demonstrative ? <Chip kind="sim">Valores demonstrativos</Chip> : undefined}>
-        {draft.alerts.demonstrative && <Notice kind="sim">Os limites atuais são valores de DEMONSTRAÇÃO, não recomendações. Ao editar qualquer campo eles deixam de ser rotulados assim.</Notice>}
+      <Section title="Limites de alerta" sub="Você define os limites; o sistema não impõe faixas agronômicas universais. Deixe em branco para desativar.">
         <div className="form-grid" style={{ marginTop: '0.6rem' }}>
           {(
             [
@@ -316,5 +321,31 @@ export function Settings({ dataset, live, meta }: { dataset: Dataset; live: Live
         )}
       </div>
     </main>
+  );
+}
+
+function DeviceSelect({ devices, kind, value, taken, onChange }: { devices: ProviderDeviceDto[] | null; kind: 'climate' | 'switch'; value: string | null; taken: string[]; onChange: (v: string | null) => void }) {
+  if (devices === null) return <select className="input" disabled><option>Carregando…</option></select>;
+  const options = devices.filter((d) => d.kind === kind);
+  const known = value === null || options.some((d) => d.deviceId === value);
+  const describe = (d: ProviderDeviceDto) =>
+    kind === 'climate'
+      ? `${d.name} · ${d.temperatureC ?? '—'} °C · ${d.humidityPct ?? '—'} % UR${d.online === false ? ' · offline' : ''}`
+      : `${d.name} · ${d.switchState === 'on' ? 'ligado' : d.switchState === 'off' ? 'desligado' : '—'}${d.online === false ? ' · offline' : ''}`;
+  return (
+    <>
+      <select className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
+        <option value="">— não vinculado —</option>
+        {!known && <option value={value!}>{value} (não encontrado na última leitura)</option>}
+        {options.map((d) => (
+          <option key={d.deviceId} value={d.deviceId} disabled={taken.includes(d.deviceId) && d.deviceId !== value}>
+            {describe(d)}
+          </option>
+        ))}
+      </select>
+      {options.length === 0 && (
+        <small>{devices.length === 0 ? 'Nenhum dispositivo: conecte o eWeLink em "Dados e integração".' : kind === 'climate' ? 'Nenhum sensor de temperatura/umidade em formato suportado foi encontrado.' : 'Nenhum dispositivo liga/desliga encontrado.'}</small>
+      )}
+    </>
   );
 }

@@ -1,9 +1,10 @@
 # Publicação (manual — exige sua aprovação)
 
-Nada aqui foi executado. Publicar coloca o sistema num endereço público `*.workers.dev`. **Sem `VIEW_TOKEN`, qualquer pessoa com o endereço vê os dados.** Não use nenhum plano pago; conferir no painel da Cloudflare que a conta está no plano gratuito.
+Nada aqui foi executado. Publicar cria um endereço gratuito `https://orquidario-inteligente.<sua-conta>.workers.dev`. Use só o plano gratuito da Cloudflare e **não** ative o "Workers Paid".
 
 ## 1. Conta e ferramenta
 ```bash
+npm install
 npx wrangler login            # abre o navegador; nenhuma cobrança
 ```
 
@@ -17,14 +18,16 @@ npm run db:migrate:remote
 
 ## 3. Segredos (nunca no repositório)
 ```bash
-npx wrangler secret put ADMIN_TOKEN     # grava configuração
-npx wrangler secret put INGEST_TOKEN    # dispositivos/integrações enviam leituras
-npx wrangler secret put VIEW_TOKEN      # recomendado: exige token para ver o painel
+npx wrangler secret put ADMIN_TOKEN          # edita configuração e conecta o eWeLink
+npx wrangler secret put VIEW_TOKEN           # recomendado: exige token para ver o painel (TV usa ?k=…)
+npx wrangler secret put EWELINK_APP_ID       # do app em dev.ewelink.cc
+npx wrangler secret put EWELINK_APP_SECRET
 ```
-Use valores longos e aleatórios (`node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`).
+Gere tokens longos: `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`.
 
-## 4. Variáveis
-Em `wrangler.toml` `[vars]`: `DEMO_ENABLED = "false"` (recomendado em produção real) e `DEFAULT_DATASET = "real"`. Para publicar **só a demonstração**, mantenha `"true"`/`"demo"` e semeie: `npm run db:seed:demo -- --remote` (uma vez, ~17 mil linhas escritas).
+## 4. Variáveis em `apps/worker/wrangler.toml`
+- `EWELINK_REDIRECT_URL = "https://orquidario-inteligente.<sua-conta>.workers.dev/api/ewelink/callback"`: cadastre o mesmo valor no app eWeLink.
+- `EWELINK_APP_EXPIRES_AT = "AAAA-MM-DD"`: vencimento da credencial anual, para o aviso antecipado.
 
 ## 5. Build e deploy
 ```bash
@@ -32,9 +35,9 @@ cd ../..
 npm run build
 cd apps/worker && npx wrangler deploy
 ```
-O endereço sairá como `https://orquidario-inteligente.<sua-conta>.workers.dev`. TV: `https://…/?tv=1&k=<VIEW_TOKEN>` (favorite; o token só permite ler).
 
 ## 6. Depois
-- Confirme no painel as cotas de [CUSTOS-E-COTAS.md](CUSTOS-E-COTAS.md) e observe o uso no primeiro dia.
-- Se não quiser a tarefa agendada, remova `[triggers]` de `wrangler.toml` (a retenção diária passa a ser manual: `POST /api/admin/maintenance`).
-- Para conectar equipamentos: [INTEGRACAO-EWELINK.md](INTEGRACAO-EWELINK.md) e [SUGESTOES-E-PLANO.md](SUGESTOES-E-PLANO.md).
+1. **Token de administração:** abra o endereço e informe o token em Configurações → "Acesso para editar".
+2. **eWeLink:** em "Dados e integração", conecte a conta. Em Configurações, vincule os sensores e o Sonoff da bomba.
+3. **TV:** abra `https://…/?tv=1&k=<VIEW_TOKEN>`, salve nos favoritos e use a tela cheia. O token da TV só permite ler.
+4. **Cotas:** confira no painel da Cloudflare, no primeiro dia, o uso de requisições e de linhas do D1 (ver [CUSTOS-E-COTAS.md](CUSTOS-E-COTAS.md)).

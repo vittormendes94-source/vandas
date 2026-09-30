@@ -1,35 +1,49 @@
-# Integração eWeLink — o que se sabe, o que falta validar
+# Integração eWeLink
 
-**Estado: NÃO integrado, NÃO implementado, NÃO testado.** O arquivo `apps/worker/src/integrations/ewelink.ts` é um esqueleto explícito que **não faz nenhuma chamada de rede**. Implementar endpoints “de memória” seria declarar uma integração que ninguém verificou.
+**Estado: implementada conforme a documentação oficial; ainda NÃO testada com uma conta e aparelhos reais.**
+Foi testada contra um servidor que reproduz os formatos documentados e confere as assinaturas. O cálculo da assinatura bate com os **vetores de exemplo publicados pelo eWeLink**. A primeira conexão com a sua conta é o teste definitivo.
 
-## Por que não foi implementado
+Fonte: documentação oficial em `github.com/CoolKit-Technologies/eWeLink-API` (`en/OAuth2.0.md`, `en/APICenterV2.md`, `en/UIIDProtocol.md`, `en/Pricing.md`), consultada em 30/09/2026 (última alteração do documento: 14/02/2026).
 
-1. A documentação oficial do eWeLink **não pôde ser acessada** neste ambiente (bloqueio de rede).
-2. Não há credenciais de desenvolvedor, ponte, sensores nem o modelo do Sonoff da bomba para teste real.
-3. Só há indícios (resultados de busca, fóruns; **não** documentação primária):
-   - o app de desenvolvedor gratuito parece dar ~50 mil chamadas/mês, com OAuth2 que exige login humano;
-   - desenvolvedores relatam que o **webhook não devolve temperatura/umidade**, apenas o resultado do gatilho;
-   - o SNZB-02WD é Zigbee 3.0 e funciona com a ZBBridge-P; o app eWeLink mostra o histórico e exporta CSV (até 180 dias).
-   Tudo isso precisa ser confirmado.
+## O que a documentação oficial garante
 
-## Checklist de validação (antes de escrever código)
+| Ponto | Documentação |
+|---|---|
+| Custo | Desenvolvedor pessoal: gratuito, somente OAuth 2.0, **uma credencial válida por 1 ano**, sem suporte |
+| Cota | 50 000 chamadas/mês por região (app gratuito). Estourou → HTTP 403 ou erro 412 até o mês seguinte |
+| Frequência | ≥ 500 ms entre chamadas; ≤ 300 chamadas em 5 min por IP |
+| Tokens | Acesso: 30 dias. Renovação: 60 dias. `POST /v2/user/refresh` renova os dois |
+| Marcas | Liberadas: **Sonoff** e CoolKit (os seus aparelhos são Sonoff) |
+| Sensor Zigbee (UIID 1770) | `temperature` e `humidity` = valor × 100; `battery`; **`trigTime` = instante da última medição (ms)** |
+| Liga/desliga | `switch: "on"|"off"` (1 canal) ou `switches[{switch, outlet}]` |
+| Online | Cada aparelho vem com `online: true/false` |
 
-- [ ] Condições **atuais** de acesso à API para desenvolvedor (custo, aprovação, região do servidor para conta brasileira).
-- [ ] Autenticação/autorização: fluxo OAuth2, validade e renovação de tokens; dá para operar sem navegador (cron)?
-- [ ] Compatibilidade oficial: ZBBridge-P + SNZB-02WD como sub-dispositivo; a API expõe o sub-dispositivo?
-- [ ] Campos de temperatura/umidade (e bateria/sinal) na API; existe horário da medição na resposta?
-- [ ] Estado do Sonoff da bomba (modelo a identificar) e como ele é reportado (só em mudanças? heartbeat?).
-- [ ] Limites de chamadas e frequência de atualização; cota gratuita realmente cobre 3 sensores + 1 relé.
-- [ ] Viabilidade de coleta contínua **dentro do Worker gratuito** (cron ≥ 1 min, sem conexão persistente, 10 ms de CPU, subrequests).
-- [ ] Webhooks: gratuitos? entregam dados de sensor? (não presumir).
+## Como o sistema usa
 
-## Como implementar depois de validar
+- **Conexão:** feita em "Dados e integração" → "Conectar conta eWeLink". Você entra na **página oficial** do eWeLink, e a senha não passa pelo sistema. O retorno é validado por um código de uso único que vale 10 min.
+- **Tokens:** ficam **cifrados** (AES-GCM) no banco. São renovados automaticamente 5 dias antes de vencer, ou na hora, se o eWeLink responder "expirado".
+- **Leitura:** a cada 2 min, uma chamada (`GET /v2/device/thing?num=0`) traz todos os aparelhos. São cerca de 21,6 mil chamadas/mês, 43 % da cota.
+  - **Proteção da cota:** perto de 46 mil chamadas no mês, a leitura desacelera para 1 a cada 10 min.
+- **Sensores:** só grava leitura com `trigTime` válido. Como a chave é (sensor, `trigTime`), consultar de novo a mesma medição não grava nada.
+  - **Valores fora da faixa física:** são descartados.
+  - **Modelos não documentados:** aparecem como "não suportado" e não são lidos.
+- **Bomba:** mostra só o estado atual. "Desconhecido" em três casos: o Sonoff está offline, a leitura parou há mais de 10 min, ou o Sonoff não está vinculado. **Nada da bomba é gravado em histórico** e **nenhum comando é enviado**.
+- **Saúde da integração:** a tela mostra a última leitura, o último erro, as falhas seguidas, o uso da cota e a validade dos tokens e da credencial anual.
 
-1. Crie o app de desenvolvedor e guarde as credenciais **somente** como secrets do Worker (`wrangler secret put …`); nunca no front-end ou no repositório.
-2. Em `ewelink.ts`, implemente `poll()` devolvendo um `IngestReadingsBody` e/ou `IngestRelayBody[]` (o mesmo contrato de [CONTRATO-DE-LEITURAS.md](CONTRATO-DE-LEITURAS.md)), com `measuredAt` da origem quando existir, e mapeie `externalId` (deviceid) → `sensorId` a partir de Configurações.
-3. Faça o `scheduled()` de `src/index.ts` persistir o resultado com `persistReadings`/`recordRelay` (dataset `real`). **Sem fallback para simulação.**
-4. Teste com o equipamento real e só então marque a integração como concluída na documentação e na tela “Dados e integração”.
+## Pontos que só o teste real confirma
 
-## Se a validação falhar
+1. Aprovação do cadastro de desenvolvedor pessoal em **dev.ewelink.cc**.
+2. Se o **SNZB-02WD** aparece como UIID 1770. Se aparecer com outro UIID, a tela mostra "Não suportado (UIID X)". Me envie o número e adiciono o formato com teste.
+3. De quanto em quanto tempo o SNZB-02WD atualiza o `trigTime`: ele envia por variação. Ajuste "atualizado/atrasado" em Configurações.
+4. Se o login da API convive com o app do celular na mesma conta. A documentação cita o erro 401 "conta logada por outro". Se houver conflito, a solução é uma conta eWeLink só para o sistema, com os aparelhos **compartilhados** para ela. O sistema lê aparelhos compartilhados (`itemType 2`).
+5. A região da sua conta (provavelmente `us`, Américas). Ela vem no retorno do login, então não é preciso configurar.
 
-O restante do sistema não muda. Alternativas (ver [SUGESTOES-E-PLANO.md](SUGESTOES-E-PLANO.md)): sensor Wi-Fi próprio enviando direto à API de ingestão; ponte local (Home Assistant/Node-RED) que repassa leituras; importar CSV exportado pelo app do eWeLink (formato ainda não verificado).
+## Passo a passo
+
+1. **dev.ewelink.cc:** cadastro de desenvolvedor pessoal e criação do app.
+2. **URL de retorno do app:** `https://<seu-endereço>/api/ewelink/callback`. O mesmo valor vai em `EWELINK_REDIRECT_URL`, no `wrangler.toml`.
+3. **Credencial:** `wrangler secret put EWELINK_APP_ID` e `wrangler secret put EWELINK_APP_SECRET`. Anote a data de vencimento (1 ano) em `EWELINK_APP_EXPIRES_AT`.
+4. **Conectar:** no sistema, informe o token de administração, depois "Dados e integração" → Conectar.
+5. **Vincular:** em Configurações, escolha cada sensor e o Sonoff da bomba na lista.
+
+Quando a credencial anual vencer, crie um app novo, troque os dois segredos e conecte de novo. O painel avisa com 30 dias de antecedência.

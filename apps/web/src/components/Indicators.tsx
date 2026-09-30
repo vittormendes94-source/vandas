@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { evaluateAlerts, fmtNum, formatAge, formatDateTime, formatTimeSec } from '@orq/core';
-import type { AppConfig, Dataset, PeriodSummary, QuantityStats, Snapshot } from '@orq/core';
-import { CalcChip, Chip, FreshnessChip, OriginChip } from './ui';
+import type { AppConfig, PeriodSummary, QuantityStats, SensorLinkDto, Snapshot } from '@orq/core';
+import { CalcChip, Chip, FreshnessChip, MeasuredChip } from './ui';
 
 function nameOf(snapshot: Snapshot, id: string): string {
   return snapshot.sensors.find((s) => s.sensor.id === id)?.sensor.name ?? id.toUpperCase();
@@ -81,7 +81,7 @@ export function KpiGrid({ snapshot, replay }: { snapshot: Snapshot; replay: bool
   );
 }
 
-export function SensorCards({ snapshot, dataset, selectedId, onSelect, replay }: { snapshot: Snapshot; dataset: Dataset; selectedId: string | null; onSelect: (id: string | null) => void; replay: boolean }) {
+export function SensorCards({ snapshot, links, selectedId, onSelect, replay }: { snapshot: Snapshot; links: Record<string, SensorLinkDto>; selectedId: string | null; onSelect: (id: string | null) => void; replay: boolean }) {
   return (
     <div className="sensors">
       {snapshot.sensors.map((s) => {
@@ -95,7 +95,6 @@ export function SensorCards({ snapshot, dataset, selectedId, onSelect, replay }:
                 {s.sensor.name}
               </span>
               <span className="toolbar">
-                <OriginChip dataset={dataset} />
                 <FreshnessChip freshness={s.freshness} replay={replay} />
               </span>
             </div>
@@ -137,6 +136,7 @@ export function SensorCards({ snapshot, dataset, selectedId, onSelect, replay }:
             {s.freshness === 'delayed' && !replay && <div className="tiny" style={{ color: 'var(--amber)', marginTop: '0.3rem' }}>Leitura vencida: excluída das médias e do mapa.</div>}
             {s.freshness === 'unavailable' && !replay && <div className="tiny" style={{ color: 'var(--red)', marginTop: '0.3rem' }}>{r ? 'Sem comunicação: última leitura antiga, excluída das médias e do mapa.' : 'Nenhuma leitura recebida deste sensor.'}</div>}
             {s.sensor.positionProvisional && <div className="tiny mute" style={{ marginTop: '0.3rem' }}>Posição provisória ({fmtNum(s.sensor.xM, 1)} m, {fmtNum(s.sensor.yM, 1)} m)</div>}
+            {!replay && <LinkLine link={links[s.sensor.id]} />}
           </button>
         );
       })}
@@ -144,7 +144,7 @@ export function SensorCards({ snapshot, dataset, selectedId, onSelect, replay }:
   );
 }
 
-export function IndicatorsTable({ snapshot, dataset, replay }: { snapshot: Snapshot; dataset: Dataset; replay: boolean }) {
+export function IndicatorsTable({ snapshot, replay }: { snapshot: Snapshot; replay: boolean }) {
   const hasBattery = snapshot.sensors.some((s) => s.reading?.batteryPct != null);
   const hasSignal = snapshot.sensors.some((s) => s.reading?.linkQuality != null || s.reading?.rssiDbm != null);
   return (
@@ -155,7 +155,7 @@ export function IndicatorsTable({ snapshot, dataset, replay }: { snapshot: Snaps
           <div className="card__sub">DPV e ponto de orvalho calculados por sensor com a fórmula de Magnus (ver “Dados e integração”). DPV do ar, não da folha.</div>
         </div>
         <div className="toolbar">
-          <OriginChip dataset={dataset} />
+          <MeasuredChip />
           <CalcChip />
         </div>
       </div>
@@ -259,7 +259,6 @@ export function AlertsCard({ snapshot, alerts }: { snapshot: Snapshot; alerts: A
     <div className={`notice${hits.length ? ' notice--warn' : ''}`}>
       <div className="toolbar" style={{ marginBottom: hits.length ? '0.35rem' : 0 }}>
         <strong>{hits.length ? `${hits.length} leitura(s) fora dos limites configurados` : 'Nenhuma leitura válida fora dos limites configurados'}</strong>
-        {alerts.demonstrative && <Chip kind="sim">Limites demonstrativos — defina os seus</Chip>}
       </div>
       {hits.length > 0 && (
         <ul className="list">
@@ -275,4 +274,12 @@ export function AlertsCard({ snapshot, alerts }: { snapshot: Snapshot; alerts: A
       </div>
     </div>
   );
+}
+
+function LinkLine({ link }: { link: SensorLinkDto | undefined }) {
+  if (!link?.deviceId) return <div className="tiny" style={{ color: 'var(--amber)', marginTop: '0.3rem' }}>Não vinculado a um sensor eWeLink (Configurações).</div>;
+  const name = link.deviceName ?? link.deviceId;
+  if (link.online === true) return <div className="tiny mute" style={{ marginTop: '0.3rem' }}>eWeLink: {name} · online</div>;
+  if (link.online === false) return <div className="tiny" style={{ color: 'var(--red)', marginTop: '0.3rem' }}>eWeLink: {name} · offline</div>;
+  return <div className="tiny" style={{ color: 'var(--amber)', marginTop: '0.3rem' }}>eWeLink: {name} · não encontrado na última leitura</div>;
 }

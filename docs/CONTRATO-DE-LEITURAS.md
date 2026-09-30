@@ -1,10 +1,10 @@
-# Contrato de leituras (ingestão v1)
+# Contrato de leituras (ingestão genérica v1)
 
-Qualquer origem (ESP32, script, Home Assistant, Node-RED, futuro adaptador do eWeLink) envia no mesmo formato. O caminho HTTP e os adaptadores internos passam pela **mesma validação e gravação**.
+A origem principal é o **eWeLink** (lido automaticamente pelo servidor). Esta rota existe para outras origens, se um dia forem usadas (ESP32, script, Home Assistant). As leituras do eWeLink e desta rota passam pela **mesma gravação idempotente**.
 
 ## Leituras — `POST /api/v1/ingest/readings`
 
-Cabeçalhos: `Authorization: Bearer <INGEST_TOKEN>`, `Content-Type: application/json`. Corpo máximo: 64 KB. Grava **sempre** no conjunto `real`.
+Cabeçalhos: `Authorization: Bearer <INGEST_TOKEN>`, `Content-Type: application/json`. Corpo máximo: 64 KB. 
 
 ```json
 {
@@ -53,16 +53,6 @@ Campos desconhecidos são **recusados** (evita erros de digitação silenciosos)
 - **Fora de ordem**: aceito. Entra no histórico; a “última leitura” é sempre a de maior `measuredAt`. Agregados horários são recalculados a partir das leituras brutas.
 - **Relógio**: `measuredAt` mais de 5 min no futuro → `future_timestamp`; mais antigo que a retenção (padrão 45 dias) → `too_old`.
 - **Frequência**: não há mínimo. Ajuste em Configurações os limites de “atrasado” e “sem comunicação” à frequência **observada** dos sensores.
-
-## Relé — `POST /api/v1/ingest/relay`
-
-```json
-{ "source": "esp32", "deviceId": "pump", "state": "on", "measuredAt": "2026-09-30T17:00:00Z", "online": true }
-```
-
-`state` (`on`/`off`) e/ou `online` (boolean) — pelo menos um. Só grava transição quando o estado muda. Mensagens antigas fora de ordem não mudam o “último estado”. O sistema registra **estado informado pelo controlador**; sem sensor de vazão não afirma passagem de água, volume ou distribuição. Períodos aparecem como “ligado observado”.
-
-Comunicação do relé: `online:false` informado, ou (se configurado) nenhuma mensagem há mais que “Relé sem comunicação após X min”. Nesses casos o estado exibido é **desconhecido**, nunca “desligado”.
 
 ## Autenticação
 

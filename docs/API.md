@@ -5,13 +5,17 @@ Base: mesma origem da interface. JSON. Datas em ISO 8601 UTC (`...Z`) nas respos
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
 | GET | `/api/health` | aberto | Saúde |
-| GET | `/api/meta` | aberto | Flags não sensíveis (demo habilitada, conjunto padrão, se há token de visualização/edição/ingestão configurados) |
-| GET | `/api/live?dataset=demo\|real` | visualização | Configuração, última leitura de cada sensor (pode estar vencida), estado do relé, irrigação das últimas 24 h, informações de integração |
-| GET | `/api/history?dataset&from&to&res&detail` | visualização | Histórico (ver abaixo) |
-| GET | `/api/config?dataset` | visualização | Configuração atual |
-| PUT | `/api/config?dataset` | **admin** | Grava configuração (controle de revisão) |
+| GET | `/api/meta` | aberto | Flags não sensíveis (se há token de visualização/edição/ingestão configurados) |
+| GET | `/api/live` | visualização | Configuração, última leitura de cada sensor (pode estar vencida), vínculo eWeLink de cada sensor, estado atual da bomba, saúde da integração |
+| GET | `/api/history?from&to&res&detail` | visualização | Histórico (ver abaixo) |
+| GET | `/api/ewelink/devices` | visualização | Aparelhos encontrados na última leitura do eWeLink (retrato, não histórico) |
+| GET | `/api/config` | visualização | Configuração atual |
+| PUT | `/api/config` | **admin** | Grava configuração (controle de revisão) |
+| POST | `/api/ewelink/authorize` | **admin** | Devolve o endereço da página oficial de login do eWeLink |
+| GET | `/api/ewelink/callback` | `state` de uso único | Retorno do login; troca o código pelos tokens e redireciona para a interface |
+| POST | `/api/ewelink/poll` | **admin** | Lê o eWeLink agora |
+| POST | `/api/ewelink/disconnect` | **admin** | Apaga os tokens e o retrato dos aparelhos |
 | POST | `/api/v1/ingest/readings` | **ingestão** | Leituras — ver [CONTRATO-DE-LEITURAS.md](CONTRATO-DE-LEITURAS.md) |
-| POST | `/api/v1/ingest/relay` | **ingestão** | Estado do relé |
 | POST | `/api/admin/maintenance` | **admin** | Aplica a retenção agora |
 
 **Acesso**: *visualização* = aberto, ou exige `VIEW_TOKEN` (`x-view-token`, `Authorization: Bearer` ou `?k=`) se configurado; o token de admin também lê. *admin* = `Authorization: Bearer <ADMIN_TOKEN>`. *ingestão* = `Authorization: Bearer <INGEST_TOKEN>`. Tokens diferentes não são intercambiáveis (exceto admin lendo).
@@ -24,7 +28,6 @@ Base: mesma origem da interface. JSON. Datas em ISO 8601 UTC (`...Z`) nas respos
 - Formato compacto (menos bytes e CPU):
   - bruto: `[medidoEm_ms, temperaturaC, umidadePct]`; com `detail=full`: `[..., recebidoEm_ms, bateria|null, lqi|null, rssi|null, baseTempo(0 origem/1 recebimento)]`
   - horário: `[inicioHora_ms, tMédia, tMín, tMáx, uMédia, uMín, uMáx, n]`
-- `irrigation`: períodos com estado “ligado” observado que tocam a janela (`endedAt: null` = ainda ligado).
 
 ## `PUT /api/config`
 
@@ -39,4 +42,5 @@ Corpo: a configuração completa (mesma forma de `GET /api/config`), com `revisi
 - IDW: `v = Σ wᵢvᵢ/Σ wᵢ`, `wᵢ = 1/dᵢ²`; grade 96×40; extrapolação = fora do casco convexo dos sensores válidos; cobertura insuficiente (< 3 pontos não colineares) → sem mapa.
 - Frescor: `fresh` ≤ `freshMaxMin` < `delayed` ≤ `offlineAfterMin` < `unavailable`; só `fresh` entra em médias/mapas.
 - Replay: por sensor, leitura mais recente com `measuredAt ≤ t` dentro da tolerância; senão “sem leitura no instante”.
-- Comparação: `Δ = média(depois: [fim, fim+W)) − média(antes: [início−W, início))`, ≥ 2 leituras por janela, janelas recortadas na vizinhança de outro evento. É variação observada, sem causalidade.
+- Média dos sensores (gráficos): o período é dividido em intervalos (10 min, 1 h ou 3 h); em cada intervalo, média de cada sensor e depois média simples entre sensores; só entram intervalos com **todos** os sensores. Faixa = menor e maior sensor.
+- Bomba: `ok` só com Sonoff online e leitura do eWeLink de até 10 min; senão o estado é `unknown`.

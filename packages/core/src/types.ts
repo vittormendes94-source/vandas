@@ -11,9 +11,6 @@
 export const ROOM = { lengthM: 12, widthM: 5 } as const;
 export const ROOM_AREA_M2 = ROOM.lengthM * ROOM.widthM;
 
-/** "demo" = dados simulados; "real" = medições recebidas por ingestão. Nunca se misturam. */
-export type Dataset = 'demo' | 'real';
-
 export type Quantity = 'temperature' | 'humidity';
 
 /** Como o instante de uma leitura foi determinado. */
@@ -47,7 +44,7 @@ export interface SensorConfig {
   yM: number;
   /** Verdadeiro enquanto a posição for provisória (ainda não medida no local). */
   positionProvisional: boolean;
-  /** Identificador do dispositivo no provedor (ex.: deviceid do eWeLink). Opcional. */
+  /** deviceid do sensor no eWeLink (ou outro provedor). null = ainda não vinculado. */
   externalId?: string | null;
 }
 
@@ -79,12 +76,11 @@ export interface AppConfig {
     /** Tolerância (min) para combinar leituras de sensores diferentes num mesmo instante. */
     toleranceMin: number;
   };
+  /** Limites definidos pelo usuário. Todos null = nenhum alerta. */
   alerts: {
     temperature: Limits;
     humidity: Limits;
     dpv: Limits;
-    /** Verdadeiro quando os limites são apenas valores de demonstração. */
-    demonstrative: boolean;
   };
   scales: {
     temperature: { min: number; max: number };
@@ -94,31 +90,22 @@ export interface AppConfig {
     /** Ângulo, em graus no sentido horário a partir do "topo" do mapa, para onde aponta o Norte. null = não informado. */
     northAngleDeg: number | null;
   };
+  /** Planta dos aspersores: apenas desenho de referência. */
   irrigation: {
     sprinklers: Sprinkler[];
     layoutProvisional: boolean;
-    /** Texto livre informado pelo usuário (ex.: "manhã e tarde · 5 min/ciclo"). Não é lido como agenda. */
-    informedSchedule: string | null;
-    /** Se definido, o relé é considerado sem comunicação após esse tempo sem qualquer mensagem. */
-    relayFreshMaxMin: number | null;
-    /** Janela (min) para a comparação ambiental antes/depois de cada evento. */
-    comparisonWindowMin: number;
+  };
+  /** Bomba: só o estado atual (ligada/desligada) informado pelo Sonoff. Nada é registrado em histórico. */
+  pump: {
+    /** deviceid do Sonoff da bomba no eWeLink. null = não vinculado. */
+    deviceId: string | null;
+    /** Canal (0 = primeiro) em Sonoff de vários canais. */
+    outlet: number;
   };
   retention: {
     /** Dias de leituras brutas mantidas. O histórico horário agregado é mantido por mais tempo. */
     rawDays: number;
   };
-}
-
-export interface RelayTransition {
-  at: number;
-  state: 'on' | 'off';
-}
-
-export interface IrrigationPeriod {
-  startedAt: number;
-  /** null enquanto o último estado observado for "ligado". */
-  endedAt: number | null;
 }
 
 /** Agregado horário (ou ponto bruto, com n=1 e min=max=avg). */

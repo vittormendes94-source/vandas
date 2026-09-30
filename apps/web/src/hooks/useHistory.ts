@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Dataset, HistoryResponse } from '@orq/core';
+import type { HistoryResponse } from '@orq/core';
 import { ApiError, api } from '../lib/api';
 
 export interface HistoryState {
@@ -9,7 +9,7 @@ export interface HistoryState {
 }
 
 /** Carrega um intervalo (a API escolhe bruto ≤ 48 h, horário acima). `key` força recarregar. */
-export function useHistory(dataset: Dataset, range: { from: number; to: number } | null, key = 0): HistoryState {
+export function useHistory(range: { from: number; to: number } | null, key = 0): HistoryState {
   const [state, setState] = useState<HistoryState>({ data: null, loading: !!range, error: null });
   const from = range?.from;
   const to = range?.to;
@@ -21,13 +21,13 @@ export function useHistory(dataset: Dataset, range: { from: number; to: number }
     const ac = new AbortController();
     setState((s) => ({ ...s, loading: true, error: null }));
     api
-      .history(dataset, from, to, { signal: ac.signal })
+      .history(from, to, { signal: ac.signal })
       .then((data) => setState({ data, loading: false, error: null }))
       .catch((e) => {
         if ((e as Error).name === 'AbortError') return;
         setState({ data: null, loading: false, error: e instanceof ApiError ? e : new ApiError(0, 'unknown', String(e)) });
       });
     return () => ac.abort();
-  }, [dataset, from, to, key]);
+  }, [from, to, key]);
   return state;
 }

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import type { Dataset, Freshness } from '@orq/core';
+import type { Freshness } from '@orq/core';
 
-export type ChipKind = 'sim' | 'measured' | 'calc' | 'est' | 'warn' | 'bad' | 'ok' | 'plain';
+export type ChipKind = 'measured' | 'calc' | 'est' | 'warn' | 'bad' | 'ok' | 'plain';
 
 export function Chip({ kind = 'plain', children, title }: { kind?: ChipKind; children: ReactNode; title?: string }) {
   return (
@@ -11,18 +11,12 @@ export function Chip({ kind = 'plain', children, title }: { kind?: ChipKind; chi
   );
 }
 
-/** Origem do dado: no conjunto de demonstração tudo é SIMULADO; no real, as leituras são MEDIDAS (recebidas). */
-export function OriginChip({ dataset }: { dataset: Dataset }) {
-  return dataset === 'demo' ? (
-    <Chip kind="sim" title="Valor gerado por simulação; não vem de nenhum sensor.">
-      Simulado
-    </Chip>
-  ) : (
-    <Chip kind="measured" title="Medição recebida de um sensor.">
-      Medido
-    </Chip>
-  );
-}
+/** Valor medido por um sensor (não calculado nem estimado). */
+export const MeasuredChip = () => (
+  <Chip kind="measured" title="Medição recebida de um sensor.">
+    Medido
+  </Chip>
+);
 
 export const CalcChip = () => (
   <Chip kind="calc" title="Indicador calculado a partir das leituras dos sensores.">
@@ -49,7 +43,7 @@ export function FreshnessChip({ freshness, replay }: { freshness: Freshness; rep
   return <Chip kind={f.kind}>{f.text}</Chip>;
 }
 
-export function Notice({ kind, children }: { kind?: 'warn' | 'bad' | 'sim'; children: ReactNode }) {
+export function Notice({ kind, children }: { kind?: 'warn' | 'bad'; children: ReactNode }) {
   return <div className={`notice${kind ? ` notice--${kind}` : ''}`}>{children}</div>;
 }
 

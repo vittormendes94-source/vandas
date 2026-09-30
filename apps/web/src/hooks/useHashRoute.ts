@@ -4,7 +4,7 @@ export type Route = 'painel' | 'historico' | 'config' | 'dados';
 const ROUTES: Route[] = ['painel', 'historico', 'config', 'dados'];
 
 function parse(): Route {
-  const h = location.hash.replace(/^#\/?/, '');
+  const h = location.hash.replace(/^#\/?/, '').split('?')[0] ?? '';
   return (ROUTES as string[]).includes(h) ? (h as Route) : 'painel';
 }
 
@@ -16,4 +16,10 @@ export function useHashRoute(): [Route, (r: Route) => void] {
     return () => window.removeEventListener('hashchange', on);
   }, []);
   return [route, (r) => (location.hash = `#/${r}`)];
+}
+
+/** Parâmetros depois de "?" no hash (ex.: #/dados?ewelink=conectado). */
+export function hashQuery(): URLSearchParams {
+  const i = location.hash.indexOf('?');
+  return new URLSearchParams(i >= 0 ? location.hash.slice(i + 1) : '');
 }

@@ -19,7 +19,6 @@
     "typecheck": "npm run typecheck -w @orq/core && npm run typecheck -w @orq/worker && npm run typecheck -w @orq/web",
     "test": "npm run test -w @orq/core && npm run test -w @orq/worker",
     "db:migrate:local": "npm run db:migrate:local -w @orq/worker",
-    "db:seed:demo": "npm run db:seed:demo -w @orq/worker --",
     "db:reset:local": "node scripts/reset-local-db.mjs",
     "deploy": "echo 'Publicação é manual e exige aprovação. Veja docs/PUBLICACAO.md' && exit 1",
     "build:web": "npm run build -w @orq/web"

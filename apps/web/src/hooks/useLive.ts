@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Dataset, LiveResponse } from '@orq/core';
+import type { LiveResponse } from '@orq/core';
 import { ApiError, api } from '../lib/api';
 
 export interface LiveState {
-  dataset: Dataset;
   data: LiveResponse | null;
   /** Relógio LOCAL no momento em que a última resposta chegou (para estimar o "agora" do servidor). */
   fetchedAtLocal: number | null;
@@ -21,8 +20,8 @@ const MAX_BACKOFF_MS = 300_000;
  * O polling só renova a *tela*: a idade de cada leitura vem do instante da medição (ver useServerNow).
  * Atualização por eventos (SSE/WebSocket) exigiria conexões longas ou Durable Objects; ver docs/CUSTOS-E-COTAS.md.
  */
-export function useLive(dataset: Dataset, baseSeconds: number): LiveState & { refresh: () => void } {
-  const [state, setState] = useState<LiveState>({ dataset, data: null, fetchedAtLocal: null, error: null, failures: 0, loading: true, nextAtLocal: null });
+export function useLive(baseSeconds: number): LiveState & { refresh: () => void } {
+  const [state, setState] = useState<LiveState>({ data: null, fetchedAtLocal: null, error: null, failures: 0, loading: true, nextAtLocal: null });
   const failures = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controller = useRef<AbortController | null>(null);
@@ -30,14 +29,14 @@ export function useLive(dataset: Dataset, baseSeconds: number): LiveState & { re
 
   useEffect(() => {
     failures.current = 0;
-    setState({ dataset, data: null, fetchedAtLocal: null, error: null, failures: 0, loading: true, nextAtLocal: null });
+    setState((s) => ({ ...s, loading: true }));
     let cancelled = false;
 
     const schedule = () => {
       if (cancelled) return;
       const base = baseSeconds * 1000;
       const delay = Math.min(base * 2 ** failures.current, MAX_BACKOFF_MS) * (0.9 + Math.random() * 0.2);
-      setState((s) => (s.dataset === dataset ? { ...s, nextAtLocal: Date.now() + delay } : s));
+      setState((s) => ({ ...s, nextAtLocal: Date.now() + delay }));
       timer.current = setTimeout(run, delay);
     };
 
@@ -48,17 +47,17 @@ export function useLive(dataset: Dataset, baseSeconds: number): LiveState & { re
       controller.current?.abort();
       const ac = new AbortController();
       controller.current = ac;
-      setState((s) => (s.dataset === dataset ? { ...s, loading: true } : s));
+      setState((s) => ({ ...s, loading: true }));
       try {
-        const data = await api.live(dataset, ac.signal);
+        const data = await api.live(ac.signal);
         if (cancelled) return;
         failures.current = 0;
-        setState({ dataset, data, fetchedAtLocal: Date.now(), error: null, failures: 0, loading: false, nextAtLocal: null });
+        setState({ data, fetchedAtLocal: Date.now(), error: null, failures: 0, loading: false, nextAtLocal: null });
       } catch (e) {
         if (cancelled || (e as Error).name === 'AbortError') return;
         failures.current += 1;
         const err = e instanceof ApiError ? e : new ApiError(0, 'unknown', String(e));
-        setState((s) => (s.dataset === dataset ? { ...s, error: err, failures: failures.current, loading: false } : s));
+        setState((s) => ({ ...s, error: err, failures: failures.current, loading: false }));
         // 401/404: repetir não resolve; segue com recuo máximo para não martelar o servidor.
         if (err.status === 401 || err.status === 404) failures.current = Math.max(failures.current, 6);
       }
@@ -77,7 +76,7 @@ export function useLive(dataset: Dataset, baseSeconds: number): LiveState & { re
       if (timer.current) clearTimeout(timer.current);
       controller.current?.abort();
     };
-  }, [dataset, baseSeconds]);
+  }, [baseSeconds]);
 
   const refresh = useCallback(() => {
     failures.current = 0;

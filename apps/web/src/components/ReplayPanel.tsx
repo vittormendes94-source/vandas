@@ -1,5 +1,5 @@
 import { formatDateTime, localInputToUtc, utcToLocalInput } from '@orq/core';
-import type { Gap, IrrigationPeriod } from '@orq/core';
+import type { Gap } from '@orq/core';
 
 export const REPLAY_SPEEDS = [5, 15, 30, 60, 180] as const;
 
@@ -14,7 +14,6 @@ interface Props {
   onSpeed: (s: number) => void;
   windowHours: number;
   onWindowHours: (h: number) => void;
-  irrigation: IrrigationPeriod[];
   gaps: Gap[];
   loading: boolean;
   hourly: boolean;
@@ -64,13 +63,10 @@ export function ReplayPanel(p: Props) {
         {p.gaps.map((g, i) => (
           <i key={`g${i}`} className="tl-gap" style={{ left: pct(g.from), width: wid(g.from, g.to) }} title="Lacuna: sem leituras" />
         ))}
-        {p.irrigation.map((g, i) => (
-          <i key={`i${i}`} className="tl-irr" style={{ left: pct(g.startedAt), width: wid(g.startedAt, g.endedAt ?? p.to) }} title="Relé ligado (informado)" />
-        ))}
         <i className="tl-now" style={{ left: pct(p.at) }} />
       </div>
       <div className="tiny mute">
-        <span style={{ color: 'var(--cyan)' }}>▮</span> relé ligado (informado) · <span style={{ color: 'var(--amber)' }}>▨</span> lacunas sem leituras ({p.gaps.length}) · <span style={{ color: 'var(--green)' }}>│</span> instante atual do replay
+        <span style={{ color: 'var(--amber)' }}>▨</span> lacunas sem leituras ({p.gaps.length}) · <span style={{ color: 'var(--green)' }}>│</span> instante atual do replay
       </div>
 
       <div className="replay__row">
@@ -92,7 +88,7 @@ export function ReplayPanel(p: Props) {
           />
         </label>
         <div className="field">
-          <span>Velocidade (tempo simulado por segundo)</span>
+          <span>Velocidade (minutos do histórico por segundo)</span>
           <div className="seg" role="group" aria-label="Velocidade do replay">
             {REPLAY_SPEEDS.map((s) => (
               <button key={s} type="button" aria-pressed={p.speed === s} onClick={() => p.onSpeed(s)}>

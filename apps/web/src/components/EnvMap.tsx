@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { ROOM, assessCoverage, buildField, fmtNum, idwAt, insideConvexHull } from '@orq/core';
-import type { AppConfig, Dataset, Quantity, Snapshot } from '@orq/core';
+import type { AppConfig, Quantity, Snapshot } from '@orq/core';
 import { rampColor, rampGradientCss } from '../lib/colors';
-import { Chip, EstChip, OriginChip } from './ui';
+import { Chip, EstChip, MeasuredChip } from './ui';
 
 const COLS = 96;
 const ROWS = 40;
@@ -17,7 +17,6 @@ interface Props {
   quantity: Quantity;
   snapshot: Snapshot;
   config: AppConfig;
-  dataset: Dataset;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   /** Rótulo do instante exibido (ex.: "replay 30/09 14:05"); ausente = tempo real. */
@@ -25,7 +24,7 @@ interface Props {
   replay?: boolean;
 }
 
-export function MapCard({ quantity, snapshot, config, dataset, selectedId, onSelect, instantLabel, replay }: Props) {
+export function MapCard({ quantity, snapshot, config, selectedId, onSelect, instantLabel, replay }: Props) {
   const meta = META[quantity];
   const scale = config.scales[quantity];
   const stageRef = useRef<HTMLDivElement>(null);
@@ -163,7 +162,7 @@ export function MapCard({ quantity, snapshot, config, dataset, selectedId, onSel
           </div>
         </div>
         <div className="toolbar">
-          <OriginChip dataset={dataset} />
+          <MeasuredChip />
           <EstChip />
         </div>
       </div>
