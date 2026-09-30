@@ -1,0 +1,37 @@
+#:schema node_modules/wrangler/config-schema.json
+# Orquidário Inteligente — Cloudflare Worker + D1 + arquivos estáticos (Workers Static Assets).
+# Nada aqui publica por conta própria: `wrangler deploy` só roda quando VOCÊ executar (ver docs/PUBLICACAO.md).
+
+name = "orquidario-inteligente"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# Front-end compilado (npm run build). Requisições de arquivos estáticos não passam pelo Worker
+# (em documentação consultada indiretamente constam como gratuitas e ilimitadas — confirmar no painel).
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "orquidario"
+# Placeholder: em desenvolvimento local o valor é ignorado. Para publicar, rode `wrangler d1 create orquidario`
+# e substitua pelo database_id retornado.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[vars]
+# "false" desativa o conjunto de demonstração (recomendado quando só houver dados reais).
+DEMO_ENABLED = "true"
+# Conjunto exibido por padrão: "demo" ou "real".
+DEFAULT_DATASET = "demo"
+
+# Tarefa agendada: avança a demonstração, consulta adaptadores reais habilitados e aplica retenção diária.
+# O plano gratuito permite poucos cron triggers por conta; remova esta seção se não quiser nenhum.
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Segredos NÃO ficam aqui. Em produção: `wrangler secret put ADMIN_TOKEN` (idem INGEST_TOKEN, VIEW_TOKEN).
+# Em desenvolvimento: arquivo .dev.vars (veja .dev.vars.example).

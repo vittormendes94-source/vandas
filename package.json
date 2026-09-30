@@ -1,0 +1,30 @@
+{
+  "name": "orquidario-inteligente",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Orquidário Inteligente — monitoramento ambiental de um orquidário de 12 × 5 m (demonstração + ingestão de dados reais)",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "setup": "node scripts/setup-local.mjs",
+    "dev": "npm run build:web && npm run dev -w @orq/worker",
+    "dev:web": "npm run dev -w @orq/web",
+    "build": "npm run build -w @orq/web",
+    "typecheck": "npm run typecheck -w @orq/core && npm run typecheck -w @orq/worker && npm run typecheck -w @orq/web",
+    "test": "npm run test -w @orq/core && npm run test -w @orq/worker",
+    "db:migrate:local": "npm run db:migrate:local -w @orq/worker",
+    "db:seed:demo": "npm run db:seed:demo -w @orq/worker --",
+    "db:reset:local": "node scripts/reset-local-db.mjs",
+    "deploy": "echo 'Publicação é manual e exige aprovação. Veja docs/PUBLICACAO.md' && exit 1",
+    "build:web": "npm run build -w @orq/web"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

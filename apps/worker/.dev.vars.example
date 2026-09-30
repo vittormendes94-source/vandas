@@ -1,0 +1,16 @@
+# Copie para .dev.vars (ignorado pelo git) ou rode `npm run setup` na raiz, que gera tokens aleatórios.
+# NUNCA coloque valores reais neste arquivo de exemplo.
+
+# Grava configuração (nomes/posições de sensores, aspersores, limites). Obrigatório para editar.
+ADMIN_TOKEN=troque-por-um-token-longo-e-aleatorio
+
+# Autoriza a ingestão de leituras e do estado do relé (dispositivos, scripts, integrações).
+INGEST_TOKEN=troque-por-outro-token-longo-e-aleatorio
+
+# Opcional: se definido, a leitura da API (painel/TV) exige este token (?k=... na URL da TV). Só permite ler.
+# VIEW_TOKEN=troque-por-um-terceiro-token
+
+# Opcional
+# DEMO_ENABLED=true
+# DEFAULT_DATASET=demo
+# EWELINK_ENABLED=false

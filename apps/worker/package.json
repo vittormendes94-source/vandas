@@ -1,0 +1,25 @@
+{
+  "name": "@orq/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "db:migrate:local": "wrangler d1 migrations apply orquidario --local",
+    "db:migrate:remote": "wrangler d1 migrations apply orquidario --remote",
+    "db:seed:demo": "tsx scripts/seed-demo.ts"
+  },
+  "dependencies": {
+    "@orq/core": "*",
+    "hono": "^4.13.11"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260930.1",
+    "@types/node": "^22.20.4",
+    "vitest": "^5.0.2",
+    "wrangler": "^4.144.0",
+    "tsx": "^4.20.0"
+  }
+}
