@@ -4,10 +4,12 @@ Ordem pensada para gastar o mínimo e descobrir problemas antes de comprar tudo.
 
 ## 0. Lista de compras
 
+Especificação exata, lojas, links e preços: [COMPRAS.md](COMPRAS.md).
+
 | Etapa | Item | Qtd | Observação |
 |---|---|---|---|
 | Piloto | **SONOFF SNZB-02WD** (IP65, tela LCD, sensor SHT40, pilha CR2477 inclusa) | 1 | Feito para ambiente úmido/estufa |
-| Piloto | **SONOFF ZBBridge-P** (Zigbee Bridge **Pro**) | 1 | Alimentação USB 5 V (use um carregador de celular que você já tenha) |
+| Piloto | **SONOFF ZBBridge-P** (Zigbee Bridge **Pro**) | 1 | Micro-USB 5 V/1 A (cabo incluso; use um carregador de celular que você já tenha) |
 | Depois do piloto | SNZB-02WD | 2 | Só depois de a primeira semana funcionar |
 
 **Atenção na compra:**
