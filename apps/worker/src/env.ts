@@ -18,7 +18,7 @@ export interface Env {
   /** Credencial do app de desenvolvedor pessoal eWeLink (dev.ewelink.cc). */
   EWELINK_APP_ID?: string;
   EWELINK_APP_SECRET?: string;
-  /** URL de retorno cadastrada no app eWeLink: https://<seu-endereço>/api/ewelink/callback */
+  /** Opcional: força a URL de retorno do login. Se vazio, usa <endereço do sistema>/api/ewelink/callback. */
   EWELINK_REDIRECT_URL?: string;
   /** Opcional (AAAA-MM-DD): data em que a credencial pessoal (válida 1 ano) vence, para aviso antecipado. */
   EWELINK_APP_EXPIRES_AT?: string;

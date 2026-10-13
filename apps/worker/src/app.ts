@@ -151,13 +151,13 @@ app.post('/api/admin/maintenance', requireAdmin, async (c) => {
 });
 
 /** Inicia a conexão com a conta eWeLink: devolve o endereço da página oficial de login. */
-app.post('/api/ewelink/authorize', requireAdmin, async (c) => c.json({ url: await buildAuthorizeUrl(c.env, c.env.DB, Date.now()) }));
+app.post('/api/ewelink/authorize', requireAdmin, async (c) => c.json({ url: await buildAuthorizeUrl(c.env, c.env.DB, new URL(c.req.url).origin, Date.now()) }));
 
 /** Retorno da página oficial de login do eWeLink (protegido pelo `state` de uso único). */
 app.get('/api/ewelink/callback', async (c) => {
   const now = Date.now();
   try {
-    await handleCallback(c.env, c.env.DB, { code: c.req.query('code'), region: c.req.query('region'), state: c.req.query('state') }, now);
+    await handleCallback(c.env, c.env.DB, { code: c.req.query('code'), region: c.req.query('region'), state: c.req.query('state') }, new URL(c.req.url).origin, now);
     await pollEwelink(c.env, c.env.DB, await getConfig(c.env.DB), Date.now(), { force: true });
     return c.redirect('/#/dados?ewelink=conectado', 302);
   } catch (e) {

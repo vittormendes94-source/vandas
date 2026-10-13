@@ -42,8 +42,8 @@ Fonte: documentação oficial em `github.com/CoolKit-Technologies/eWeLink-API` (
 ## Passo a passo
 
 1. **dev.ewelink.cc:** cadastro de desenvolvedor pessoal e criação do app.
-2. **URL de retorno do app:** `https://<seu-endereço>/api/ewelink/callback`. O mesmo valor vai em `EWELINK_REDIRECT_URL`, no `wrangler.toml`.
-3. **Credencial:** `wrangler secret put EWELINK_APP_ID` e `wrangler secret put EWELINK_APP_SECRET`. Anote a data de vencimento (1 ano) em `EWELINK_APP_EXPIRES_AT`.
+2. **URL de retorno do app:** `https://<seu-endereço>/api/ewelink/callback`. A tela "Dados e integração" mostra o valor exato. O sistema usa o próprio endereço; `EWELINK_REDIRECT_URL` só serve para forçar outro.
+3. **Credencial:** cadastre `EWELINK_APP_ID` e `EWELINK_APP_SECRET` nos segredos do GitHub e publique de novo ([PUBLICACAO.md](PUBLICACAO.md)). A data de vencimento (1 ano) vai na variável `EWELINK_APP_EXPIRES_AT`.
 4. **Conectar:** no sistema, informe o token de administração, depois "Dados e integração" → Conectar.
 5. **Vincular:** em Configurações, escolha cada sensor e o Sonoff da bomba na lista.
 

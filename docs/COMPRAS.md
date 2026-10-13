@@ -1,17 +1,18 @@
 # Lista de compras
 
-Pesquisa de 05/10/2026. **Preços vistos em resultados de busca; as páginas das lojas não puderam ser abertas para conferência. Confira preço, estoque e vendedor antes de comprar.**
+Pesquisa de 05/10/2026, revisada em 13/10/2026. **Preços vistos em resultados de busca; as páginas das lojas não puderam ser abertas para conferência. Confira preço, estoque e vendedor antes de comprar.**
 
 ## O que comprar
 
-| # | Item | Qtd | Quando |
-|---|---|---|---|
-| 1 | Ponte **SONOFF Zigbee Bridge Pro (ZBBridge-P)** | 1 | Piloto |
-| 2 | Sensor **SONOFF SNZB-02WD** | 1 | Piloto |
-| 3 | Sensor **SONOFF SNZB-02WD** | 2 | Depois de 1 semana de piloto funcionando |
-| — | Carregador USB 5 V / 1 A (de celular) | 1 | Use um que você já tem; a ponte vem com cabo micro-USB |
+| # | Item | Qtd |
+|---|---|---|
+| 1 | Ponte **SONOFF Zigbee Bridge Pro (ZBBridge-P)** | 1 |
+| 2 | Sensor **SONOFF SNZB-02WD** | 3 |
+| — | Carregador USB 5 V / 1 A (de celular) | 1 (use um que você já tem; a ponte vem com cabo micro-USB) |
 
 Cada SNZB-02WD mede **temperatura e umidade**. São 3 sensores no total.
+
+**Para acelerar, peça tudo junto, hoje.** O sensor quase não existe em loja brasileira, e a importação leva de 2 a 4 semanas. Pedir 1 agora e 2 depois dobra a espera. O custo de pedir os 3 juntos: o pedido passa de US$ 50 e o imposto fica um pouco maior, cerca de R$ 25 a mais no total. Confira no checkout.
 
 ## Especificação exata
 
@@ -65,13 +66,20 @@ No Mercado Livre, prefira anúncio que mostre **"ZBBridge-P"** na foto ou na fic
 
 | Loja | Link | Observação |
 |---|---|---|
-| QI Imports (Brasil) | https://qiimports.com.br/produtos/sensor-de-temperatura-e-umidade-sonoff-snzb-02wd-zigbee-com-display-lcd-ip65/ | Aparecia **sem estoque** |
+| QI Imports (Brasil) | https://qiimports.com.br/produtos/sensor-de-temperatura-e-umidade-sonoff-snzb-02wd-zigbee-com-display-lcd-ip65/ | Aparecia **sem estoque**; vale checar primeiro, porque a entrega é nacional |
+| eBay Brasil (vendedor SONOFF) | https://br.ebay.com/sch/i.html?_nkw=SNZB-02WD | Visto a **R$ 114,18** por unidade (de R$ 140,15), com envio internacional |
+| Loja oficial SONOFF | https://sonoff.tech/products/snzb-02wd-ip65-zigbee-lcd-smart-temperature-humidity-sensor | US$ 19,90. Confira se envia para o Brasil |
 | AliExpress | https://www.aliexpress.com/item/1005009136664935.html | Faixa vista: US$ 20–39. Confira se é a loja oficial SONOFF ou um vendedor bem avaliado |
 | AliExpress | https://www.aliexpress.com/i/1005011605915077.html | Idem |
 | ITEAD (loja oficial do fabricante) | https://itead.cc/product/sonoff-ip65-zigbee-lcd-smart-temperature-humidity-sensor-snzb-02wd/ | US$ 17,90; frete grátis acima de US$ 89. Confira o frete para o Brasil |
 | Amazon EUA | https://www.amazon.com/dp/B0FCG88WW6 | Confira se envia para o Brasil e o custo |
 
-**Imposto de importação:** para compras de até US$ 50, até onde sei, paga-se 20% mais ICMS; acima disso o imposto é maior. Comprar 1 sensor agora e 2 depois mantém cada pedido abaixo de US$ 50. Confira as taxas no checkout.
+**Imposto de importação:** até onde sei, compras de até US$ 50 pagam 20 % mais ICMS; acima disso, a alíquota é maior, com desconto fixo. Para 3 sensores, a diferença é pequena. Prefira loja do programa **Remessa Conforme**, como o AliExpress, que já cobra o imposto no checkout e evita retenção na alfândega.
+
+**Ordem sugerida:**
+1. QI Imports, se tiver estoque.
+2. eBay ou AliExpress, na loja oficial SONOFF ou com vendedor bem avaliado.
+3. ITEAD.
 
 ## Estimativa de gasto
 
@@ -80,8 +88,7 @@ Câmbio assumido: R$ 5,50.
 | Compra | Estimativa |
 |---|---|
 | Ponte ZBBridge-P (Brasil) | R$ 190–240 |
-| 1 × SNZB-02WD importado (~US$ 20 + impostos) | ~R$ 160 |
-| 2 × SNZB-02WD importados (~US$ 40 + impostos) | ~R$ 320 |
-| **Total** | **~R$ 670–720** |
+| 3 × SNZB-02WD importados (R$ 115–160 cada, com impostos) | R$ 345–480 |
+| **Total** | **~R$ 535–720** |
 | Mensal (sistema) | R$ 0 |
 | Mensal (energia da ponte + pilhas, diluído) | ~R$ 3 |

@@ -10,7 +10,8 @@ export function createEwelinkMock({ appId, appSecret, region = 'us' }) {
     appId,
     appSecret,
     region,
-    codes: new Set(),
+    codes: new Map(), // code → redirectUrl usado no login
+    lastRedirectUrl: null,
     at: null,
     rt: null,
     gen: 0,
@@ -43,7 +44,8 @@ export function createEwelinkMock({ appId, appSecret, region = 'us' }) {
       if (q.get('authorization') !== sign(s.appSecret, `${q.get('clientId')}_${q.get('seq')}`)) return new Response('assinatura inválida', { status: 400 });
       if (!/^[A-Za-z0-9]{8}$/.test(q.get('nonce') ?? '') || q.get('grantType') !== 'authorization_code') return new Response('parâmetros inválidos', { status: 400 });
       const code = `code-${randomBytes(8).toString('hex')}`;
-      s.codes.add(code);
+      s.codes.set(code, q.get('redirectUrl'));
+      s.lastRedirectUrl = q.get('redirectUrl');
       const dest = new URL(q.get('redirectUrl'));
       dest.searchParams.set('code', code);
       dest.searchParams.set('region', s.region);
@@ -60,6 +62,7 @@ export function createEwelinkMock({ appId, appSecret, region = 'us' }) {
       if (auth !== `Sign ${sign(s.appSecret, body)}`) return err(401, 'sign error');
       const b = JSON.parse(body);
       if (b.grantType !== 'authorization_code' || !s.codes.has(b.code)) return err(405, 'invalid code');
+      if (s.codes.get(b.code) !== b.redirectUrl) return err(405, 'redirectUrl diferente do login');
       s.codes.delete(b.code);
       issue();
       const now = Date.now();

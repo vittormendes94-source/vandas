@@ -327,6 +327,14 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     expect((await live()).integration.ewelink.connected).toBe(false);
   });
 
+  it('sem EWELINK_REDIRECT_URL: usa o endereço do próprio sistema no login e na troca do código', async () => {
+    const mock = setup();
+    env.EWELINK_REDIRECT_URL = undefined;
+    expect(await connect(mock)).toBe('/#/dados?ewelink=conectado');
+    expect(mock.state.lastRedirectUrl).toBe('http://localhost/api/ewelink/callback');
+    expect((await live()).integration.ewelink.connected).toBe(true);
+  });
+
   it('sem credenciais do app no servidor: não tenta conectar nem ler', async () => {
     const e = { ...env, EWELINK_APP_ID: undefined } as Env;
     expect((await post('/api/ewelink/authorize', {}, ADMIN, e)).status).toBe(503);

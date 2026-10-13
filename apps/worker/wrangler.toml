@@ -1,6 +1,6 @@
 #:schema node_modules/wrangler/config-schema.json
 # Orquidário Inteligente — Cloudflare Worker + D1 + arquivos estáticos (Workers Static Assets).
-# Nada aqui publica por conta própria: `wrangler deploy` só roda quando VOCÊ executar (ver docs/PUBLICACAO.md).
+# Nada aqui publica por conta própria: a publicação só roda quando VOCÊ a disparar (ver docs/PUBLICACAO.md).
 
 name = "orquidario-inteligente"
 main = "src/index.ts"
@@ -17,14 +17,14 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "orquidario"
-# Placeholder: em desenvolvimento local o valor é ignorado. Para publicar, rode `wrangler d1 create orquidario`
-# e substitua pelo database_id retornado.
+# Placeholder: em desenvolvimento local o valor é ignorado. A publicação pelo GitHub (Actions → Publicar) cria o banco
+# e troca este valor sozinha; na publicação manual, rode `wrangler d1 create orquidario` e cole o database_id.
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
 [vars]
-# URL de retorno cadastrada no app eWeLink (dev.ewelink.cc). Em produção: https://<seu-endereço>/api/ewelink/callback
-EWELINK_REDIRECT_URL = "http://localhost:8787/api/ewelink/callback"
+# A URL de retorno do login eWeLink é o próprio endereço do sistema + /api/ewelink/callback (calculada sozinha).
+# Para forçar outra, defina EWELINK_REDIRECT_URL aqui.
 # Opcional: data de vencimento (AAAA-MM-DD) da credencial pessoal eWeLink (válida 1 ano) para aviso antecipado.
 EWELINK_APP_EXPIRES_AT = ""
 

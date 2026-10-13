@@ -105,7 +105,12 @@ export async function loadState(db: D1Database, now: number): Promise<EwelinkSta
 }
 
 export function isConfigured(env: Env): boolean {
-  return !!(env.EWELINK_APP_ID && env.EWELINK_APP_SECRET && env.EWELINK_REDIRECT_URL);
+  return !!(env.EWELINK_APP_ID && env.EWELINK_APP_SECRET);
+}
+
+/** Endereço de retorno do login: `EWELINK_REDIRECT_URL` se definido; senão, o do próprio sistema (`<origem>/api/ewelink/callback`). */
+export function redirectUrl(env: Env, origin: string): string {
+  return env.EWELINK_REDIRECT_URL || `${origin}/api/ewelink/callback`;
 }
 
 export async function statusDto(env: Env, db: D1Database, now: number): Promise<EwelinkStatusDto> {
@@ -234,9 +239,9 @@ async function call<T>(
 
 /* -------------------------------------------------- OAuth -------------------------------------------------- */
 
-export async function buildAuthorizeUrl(env: Env, db: D1Database, now: number): Promise<string> {
+export async function buildAuthorizeUrl(env: Env, db: D1Database, origin: string, now: number): Promise<string> {
   if (!isConfigured(env)) {
-    throw new HttpError(503, 'ewelink_not_configured', 'Configure EWELINK_APP_ID, EWELINK_APP_SECRET e EWELINK_REDIRECT_URL no servidor.');
+    throw new HttpError(503, 'ewelink_not_configured', 'Configure EWELINK_APP_ID e EWELINK_APP_SECRET no servidor.');
   }
   const state = randomAlnum(24);
   await putSetting(db, OAUTH_STATE_KEY, { state, exp: now + 10 * 60_000 }, now);
@@ -246,7 +251,7 @@ export async function buildAuthorizeUrl(env: Env, db: D1Database, now: number): 
     clientId: env.EWELINK_APP_ID!,
     authorization: await hmacBase64(env.EWELINK_APP_SECRET!, `${env.EWELINK_APP_ID}_${seq}`),
     seq,
-    redirectUrl: env.EWELINK_REDIRECT_URL!,
+    redirectUrl: redirectUrl(env, origin),
     nonce: randomAlnum(8),
     grantType: 'authorization_code',
     showQRCode: 'false',
@@ -255,7 +260,13 @@ export async function buildAuthorizeUrl(env: Env, db: D1Database, now: number): 
 }
 
 /** Retorno do login eWeLink. Valida o `state` (uso único, 10 min) e troca o code (válido 30 s) por tokens. */
-export async function handleCallback(env: Env, db: D1Database, q: { code?: string; region?: string; state?: string }, now: number): Promise<void> {
+export async function handleCallback(
+  env: Env,
+  db: D1Database,
+  q: { code?: string; region?: string; state?: string },
+  origin: string,
+  now: number,
+): Promise<void> {
   if (!isConfigured(env)) throw new HttpError(503, 'ewelink_not_configured', 'Integração eWeLink não configurada no servidor.');
   const saved = await getSetting<{ state: string; exp: number }>(db, OAUTH_STATE_KEY);
   await deleteSetting(db, OAUTH_STATE_KEY);
@@ -270,7 +281,7 @@ export async function handleCallback(env: Env, db: D1Database, q: { code?: strin
   try {
     const d = await call<{ accessToken: string; atExpiredTime: number; refreshToken: string; rtExpiredTime: number }>(env, state, region, '/v2/user/oauth/token', {
       method: 'POST',
-      body: { code: q.code, redirectUrl: env.EWELINK_REDIRECT_URL, grantType: 'authorization_code' },
+      body: { code: q.code, redirectUrl: redirectUrl(env, origin), grantType: 'authorization_code' },
       auth: 'sign',
     });
     if (!d?.accessToken || !d.refreshToken) throw new EwelinkError('bad_response', 'O eWeLink não devolveu os tokens.');

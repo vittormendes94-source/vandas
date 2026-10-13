@@ -26,7 +26,7 @@ A integração segue a documentação oficial do eWeLink e ainda precisa do test
 | Painel: mapas, indicadores, gráficos da média dos 3 sensores, bomba, modo TV | Pronto; verificado em navegador (desktop, celular 360/390 px, tablet, TV 1920×1080 e 1280×720) |
 | Integração eWeLink: OAuth, tokens cifrados e renovados sozinhos, leitura a cada 2 min, cota protegida, lista de aparelhos para vincular | Pronta; testada contra um servidor que reproduz a API documentada e com os vetores de assinatura oficiais. **Falta o teste com a conta real** |
 | Histórico, replay, lacunas, exportação CSV | Pronto |
-| Publicação na Cloudflare | Não feita: exige sua conta e sua aprovação ([docs/PUBLICACAO.md](docs/PUBLICACAO.md)) |
+| Publicação na Cloudflare | Pronta para rodar pelo botão do GitHub (Actions → Publicar, cria o banco sozinha). Ainda não feita: exige sua conta e seu clique ([docs/PUBLICACAO.md](docs/PUBLICACAO.md)) |
 
 ## Início rápido (local)
 
@@ -39,11 +39,11 @@ npm run dev       # compila a interface e abre o servidor em http://localhost:87
 ```
 
 - **TV:** `http://localhost:8787/?tv=1`.
-- **Conectar o eWeLink localmente:** coloque `EWELINK_APP_ID` e `EWELINK_APP_SECRET` em `apps/worker/.dev.vars` e cadastre `http://localhost:8787/api/ewelink/callback` como retorno no app. Se o eWeLink exigir HTTPS no retorno, faça a conexão já publicado.
+- **Conectar o eWeLink localmente:** coloque `EWELINK_APP_ID` e `EWELINK_APP_SECRET` em `apps/worker/.dev.vars` e cadastre `http://localhost:8787/api/ewelink/callback` como retorno no app. O retorno é calculado a partir do endereço aberto. Se o eWeLink exigir HTTPS no retorno, faça a conexão já publicado.
 
 | Comando | O que faz |
 |---|---|
-| `npm test` | Testes do núcleo (52) e do servidor (29) |
+| `npm test` | Testes do núcleo (52) e do servidor (30) |
 | `npm run typecheck` | TypeScript nos 3 pacotes |
 | `npm run build` | Compila a interface |
 | `npm run db:reset:local` | Apaga o banco local |
@@ -70,4 +70,4 @@ docs/           Integração eWeLink, publicação, API, custos e cotas, contrat
 
 ## Próximos passos
 
-Instalação completa, com lista de compras: [docs/INSTALACAO.md](docs/INSTALACAO.md). Plano de menor risco: [docs/SUGESTOES-E-PLANO.md](docs/SUGESTOES-E-PLANO.md). O primeiro passo é publicar e conectar o eWeLink usando o **Sonoff da bomba, que você já tem**. Só depois disso compre 1 sensor e 1 ponte.
+Instalação completa, com lista de compras: [docs/INSTALACAO.md](docs/INSTALACAO.md). Plano de menor risco: [docs/SUGESTOES-E-PLANO.md](docs/SUGESTOES-E-PLANO.md). Caminho rápido: pedir os sensores, fazer o cadastro no eWeLink e publicar, tudo no mesmo dia e em paralelo (veja o topo de INSTALACAO.md).
