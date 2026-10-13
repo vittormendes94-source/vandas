@@ -12,6 +12,21 @@ Pesquisa de 05/10/2026, revisada em 13/10/2026. **Preços vistos em resultados d
 
 Cada SNZB-02WD mede **temperatura e umidade**. São 3 sensores no total.
 
+## O que é garantido e o que não é
+
+| Ponto | Situação |
+|---|---|
+| SNZB-02WD funciona com a ZBBridge-P e aparece no app eWeLink | **Garantido** (lista oficial de compatibilidade da SONOFF) |
+| O SNZB-02WD mede temperatura e umidade, IP65, para estufa | **Garantido** (ficha oficial) |
+| O sistema entende o formato de leitura do SNZB-02WD | Testado com o JSON real de um SNZB-02WD publicado pela comunidade |
+| **O app de desenvolvedor *pessoal* (gratuito) do eWeLink entrega o SNZB-02WD para o sistema** | **Não garantido.** A documentação oficial diz que apps pessoais acessam "tipos de dispositivo principais, liberados aos poucos", e o SNZB-02WD não está na lista oficial. A nuvem eWeLink entrega esse sensor a outros integradores, o que é um bom sinal, mas só o teste com a sua conta confirma |
+
+**Se o eWeLink não entregar o sensor (plano B, garantido):** o SNZB-02WD é suportado oficialmente pelo **Zigbee2MQTT** (https://www.zigbee2mqtt.io/devices/SNZB-02WD.html). O sistema já tem a entrada de leituras para isso (`/api/v1/ingest/readings`). O plano B troca a ponte por:
+- um **adaptador Zigbee USB** SONOFF (ZBDongle-E ou ZBDongle-P), por cerca de R$ 150–250;
+- um **computador ligado o tempo todo** no local, como um Raspberry Pi ou um notebook antigo.
+
+**Os sensores servem nos dois caminhos.** Só a ponte é específica do caminho A, e mesmo assim continua útil no app eWeLink.
+
 **Para acelerar, peça tudo junto, hoje.** O sensor quase não existe em loja brasileira, e a importação leva de 2 a 4 semanas. Pedir 1 agora e 2 depois dobra a espera. O custo de pedir os 3 juntos: o pedido passa de US$ 50 e o imposto fica um pouco maior, cerca de R$ 25 a mais no total. Confira no checkout.
 
 ## Especificação exata
@@ -52,34 +67,34 @@ Ficha oficial: https://help.sonoff.tech/docs/snzb-02wd
 
 ## Onde comprar
 
-### Ponte (sugestão: comprar no Brasil, com garantia nacional e entrega rápida)
+Somente as 4 lojas: **AliExpress, Mercado Livre, Amazon e Shopee**. Busca de 13/10/2026: as páginas das lojas não abrem daqui, então os links abaixo são buscas prontas. Confira cada anúncio com o checklist.
+
+### Ponte ZBBridge-P (existe no Brasil, entrega rápida)
 
 | Loja | Link | Preço visto na busca |
 |---|---|---|
-| Mercado Livre | https://lista.mercadolivre.com.br/sonoff-zigbee-bridge-pro | R$ 188 a R$ 218 |
-| Amazon Brasil | https://www.amazon.com.br/SONOFF-Atualizada-Protocolo-Subdispositivos-Inteligentes/dp/B09ZQQZSQZ | R$ 234,99 |
-| KaBuM | https://www.kabum.com.br/produto/675261/hub-inteligente-sonoff-zigbee-bridge-pro-wifi-branco | R$ 236,86 |
+| Amazon Brasil | https://www.amazon.com.br/SONOFF-Atualizada-Protocolo-Subdispositivos-Inteligentes/dp/B09ZQQZSQZ | R$ 234,99 (mais de 2.300 avaliações) |
+| Mercado Livre | https://lista.mercadolivre.com.br/sonoff-zigbee-bridge-pro | R$ 188–218 |
+| AliExpress | https://pt.aliexpress.com/w/wholesale-zbbridge-p.html | Mais barato, mas demora semanas. Só se for junto com os sensores |
+| Shopee | https://shopee.com.br/search?keyword=sonoff%20zigbee%20bridge%20pro | Não conferido |
 
-No Mercado Livre, prefira anúncio que mostre **"ZBBridge-P"** na foto ou na ficha, de vendedor com boa reputação.
-
-### Sensor SNZB-02WD (pouco encontrado no Brasil)
+### Sensor SNZB-02WD (não achei em loja brasileira; o caminho seguro é o AliExpress)
 
 | Loja | Link | Observação |
 |---|---|---|
-| QI Imports (Brasil) | https://qiimports.com.br/produtos/sensor-de-temperatura-e-umidade-sonoff-snzb-02wd-zigbee-com-display-lcd-ip65/ | Aparecia **sem estoque**; vale checar primeiro, porque a entrega é nacional |
-| eBay Brasil (vendedor SONOFF) | https://br.ebay.com/sch/i.html?_nkw=SNZB-02WD | Visto a **R$ 114,18** por unidade (de R$ 140,15), com envio internacional |
-| Loja oficial SONOFF | https://sonoff.tech/products/snzb-02wd-ip65-zigbee-lcd-smart-temperature-humidity-sensor | US$ 19,90. Confira se envia para o Brasil |
-| AliExpress | https://www.aliexpress.com/item/1005009136664935.html | Faixa vista: US$ 20–39. Confira se é a loja oficial SONOFF ou um vendedor bem avaliado |
-| AliExpress | https://www.aliexpress.com/i/1005011605915077.html | Idem |
-| ITEAD (loja oficial do fabricante) | https://itead.cc/product/sonoff-ip65-zigbee-lcd-smart-temperature-humidity-sensor-snzb-02wd/ | US$ 17,90; frete grátis acima de US$ 89. Confira o frete para o Brasil |
-| Amazon EUA | https://www.amazon.com/dp/B0FCG88WW6 | Confira se envia para o Brasil e o custo |
+| **AliExpress, loja "SONOFF Official Store"** | https://pt.aliexpress.com/w/wholesale-snzb-02wd.html | **Primeira opção.** Faixa vista: US$ 20–39. Participa do Remessa Conforme: o imposto já vem no checkout |
+| Mercado Livre | https://lista.mercadolivre.com.br/snzb-02wd | Nenhum anúncio encontrado na busca; confira, pois isso muda rápido |
+| Amazon Brasil | https://www.amazon.com.br/s?k=SNZB-02WD | Nenhum anúncio encontrado. Nos EUA e na Europa é o ASIN **B0FCG88WW6** |
+| Shopee | https://shopee.com.br/search?keyword=snzb-02wd | Nenhum anúncio encontrado; confira |
 
-**Imposto de importação:** até onde sei, compras de até US$ 50 pagam 20 % mais ICMS; acima disso, a alíquota é maior, com desconto fixo. Para 3 sensores, a diferença é pequena. Prefira loja do programa **Remessa Conforme**, como o AliExpress, que já cobra o imposto no checkout e evita retenção na alfândega.
+**Checklist do anúncio do sensor:**
+- O título diz **SNZB-02WD**. Não serve 02, 02D, 02P nem 02LD.
+- Aparece **IP65** e **Zigbee**.
+- **Foto:** um aparelho branco com tela LCD; a caixa mostra "IP65". O 02D é parecido, mas não diz IP65.
+- **Vendedor:** loja oficial SONOFF ou vendedor com muitas vendas e nota acima de 4,7.
+- **Desconfie** de preço abaixo de US$ 15 ou de anúncio que diga "Tuya" ou "Wi-Fi".
 
-**Ordem sugerida:**
-1. QI Imports, se tiver estoque.
-2. eBay ou AliExpress, na loja oficial SONOFF ou com vendedor bem avaliado.
-3. ITEAD.
+**Imposto de importação:** até onde sei, compras de até US$ 50 pagam 20 % mais ICMS; acima disso, a alíquota é maior, com desconto fixo. Para 3 sensores, a diferença é pequena. O AliExpress cobra o imposto no checkout, o que evita retenção na alfândega.
 
 ## Estimativa de gasto
 
