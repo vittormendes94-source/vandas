@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { DAY, fmtNum, formatAge, formatDateTime } from '@orq/core';
-import type { ProviderDeviceDto } from '@orq/core';
+import { COLLECTOR_CLOCK_WARN_MS, COLLECTOR_STALE_MS, DAY, fmtNum, formatAge, formatDateTime } from '@orq/core';
+import type { CollectorStatusDto, ProviderDeviceDto } from '@orq/core';
 import { CalcChip, Chip, EstChip, MeasuredChip, Notice } from '../components/ui';
 import { hashQuery } from '../hooks/useHashRoute';
 import type { LiveState } from '../hooks/useLive';
@@ -20,6 +20,7 @@ const CALLBACK_REASON: Record<string, string> = {
 
 export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () => void }; meta: Meta; nowMs: number }) {
   const eu = live.data?.integration.ewelink;
+  const col = live.data?.integration.collector ?? null;
   const config = live.data?.config;
   const [devices, setDevices] = useState<ProviderDeviceDto[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -34,12 +35,12 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
 
   const loadDevices = () =>
     api
-      .ewelinkDevices()
+      .devices()
       .then((r) => setDevices(r.devices))
       .catch(() => setDevices([]));
   useEffect(() => {
     loadDevices();
-  }, [eu?.lastSuccessAt]);
+  }, [eu?.lastSuccessAt, col?.lastContactAt]);
 
   const run = async (what: string, fn: () => Promise<void>) => {
     setBusy(what);
@@ -67,11 +68,13 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
     <main className="container">
       {msg && <Notice kind={msg.kind === 'bad' ? 'bad' : undefined}>{msg.text}</Notice>}
 
+      <CollectorCard col={col} nowMs={nowMs} ingestConfigured={meta.ingestAuthConfigured} />
+
       <section className="card">
         <div className="card__head">
           <div>
-            <h2 className="card__title">Conexão eWeLink</h2>
-            <div className="card__sub">Sensores SONOFF (temperatura/umidade) e o Sonoff da bomba são lidos pela API oficial do eWeLink a cada 2 min.</div>
+            <h2 className="card__title">Bomba: conexão eWeLink</h2>
+            <div className="card__sub">Usada só para mostrar se a bomba está ligada ou desligada (Sonoff Wi-Fi), pela API oficial do eWeLink a cada 2 min. Nenhum comando é enviado.</div>
           </div>
           {eu && <Chip kind={!eu.configured ? 'warn' : !eu.connected ? 'warn' : eu.lastError ? 'bad' : 'ok'}>{!eu.configured ? 'Não configurado' : !eu.connected ? 'Não conectado' : eu.lastError ? 'Com falha' : 'Conectado'}</Chip>}
         </div>
@@ -174,19 +177,20 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
       <section className="card">
         <div className="card__head">
           <div>
-            <h2 className="card__title">Dispositivos encontrados na conta</h2>
-            <div className="card__sub">Retrato da última leitura (não é histórico). Vincule em Configurações.</div>
+            <h2 className="card__title">Dispositivos encontrados</h2>
+            <div className="card__sub">Sensores Zigbee (coletor) e aparelhos da conta eWeLink. Retrato atual, não é histórico. Vincule em Configurações.</div>
           </div>
           <Chip kind="plain">{devices?.length ?? 0}</Chip>
         </div>
         {!devices || devices.length === 0 ? (
-          <div className="empty">{eu?.connected ? 'Nenhum dispositivo na última leitura.' : 'Conecte a conta eWeLink para listar os dispositivos.'}</div>
+          <div className="empty">Nenhum dispositivo ainda. Os sensores aparecem aqui depois de pareados no Zigbee2MQTT; o Sonoff da bomba, depois de conectar o eWeLink.</div>
         ) : (
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Nome no eWeLink</th>
+                  <th>Nome</th>
+                  <th>Origem</th>
                   <th>Tipo</th>
                   <th>Situação</th>
                   <th>Valores</th>
@@ -196,7 +200,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
               </thead>
               <tbody>
                 {devices.map((d) => (
-                  <tr key={d.deviceId}>
+                  <tr key={`${d.provider}:${d.deviceId}`}>
                     <td>
                       <b>{d.name}</b>
                       <div className="tiny mute">
@@ -204,12 +208,23 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
                         {d.model ? ` · ${d.model}` : ''}
                       </div>
                     </td>
+                    <td>{d.provider === 'zigbee2mqtt' ? 'Zigbee' : 'eWeLink'}</td>
                     <td>
                       {d.kind === 'climate' ? <Chip kind="ok">Temperatura/umidade</Chip> : d.kind === 'switch' ? <Chip kind="plain">Liga/desliga</Chip> : d.uiid !== null && BRIDGE_UIIDS.has(d.uiid) ? <Chip kind="plain">Ponte Zigbee</Chip> : <Chip kind="warn">Não suportado (UIID {d.uiid ?? '?'})</Chip>}
                     </td>
-                    <td>{d.online === true ? <Chip kind="ok">Online</Chip> : d.online === false ? <Chip kind="bad">Offline</Chip> : '—'}</td>
+                    <td>
+                      {d.online === true ? (
+                        <Chip kind="ok">Online</Chip>
+                      ) : d.online === false ? (
+                        <Chip kind="bad">Offline</Chip>
+                      ) : d.measuredAt ? (
+                        <span className="small">visto {formatAge(nowMs - Date.parse(d.measuredAt))}</span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="num" style={{ textAlign: 'left' }}>
-                      {d.kind === 'climate' ? `${fmtNum(d.temperatureC, 1)} °C · ${fmtNum(d.humidityPct, 0)} % UR` : d.kind === 'switch' ? (d.switchState === 'on' ? 'ligado' : d.switchState === 'off' ? 'desligado' : '—') : '—'}
+                      {d.kind === 'climate' ? `${fmtNum(d.temperatureC, 1)} °C · ${fmtNum(d.humidityPct, 0)} % UR${d.batteryPct !== null ? ` · bateria ${fmtNum(d.batteryPct, 0)} %` : ''}` : d.kind === 'switch' ? (d.switchState === 'on' ? 'ligado' : d.switchState === 'off' ? 'desligado' : '—') : '—'}
                     </td>
                     <td>{d.measuredAt ? formatDateTime(Date.parse(d.measuredAt)) : '—'}</td>
                     <td>{linkedTo(d.deviceId)}</td>
@@ -221,28 +236,37 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
         )}
         {devices?.some((d) => d.kind === 'unsupported' && !(d.uiid !== null && BRIDGE_UIIDS.has(d.uiid))) && (
           <p className="tiny mute" style={{ margin: '0.5rem 0 0' }}>
-            “Não suportado”: o formato desse modelo não está na documentação pública do eWeLink e, por segurança, não é lido. Se for um sensor que você quer usar, envie o modelo e o número UIID para adicionarmos com teste.
+            “Não suportado”: aparelho que não mede temperatura e umidade (ou, no eWeLink, modelo fora da documentação pública). Não é lido.
           </p>
         )}
       </section>
 
       <section className="card">
         <div className="card__head">
-          <h2 className="card__title">Passo a passo da conexão</h2>
+          <h2 className="card__title">Passo a passo</h2>
         </div>
+        <h3 className="small" style={{ margin: '0 0 0.3rem' }}>Sensores (coletor local)</h3>
         <ol className="list">
           <li>
-            Em <strong>dev.ewelink.cc</strong>, entre com sua conta eWeLink, faça o cadastro de desenvolvedor pessoal (gratuito, aprovado pelo eWeLink) e crie um app.
+            No computador do orquidário (Raspberry Pi ou notebook com Linux), com o adaptador <strong>SONOFF ZBDongle</strong> conectado, rode o instalador:
+            <br />
+            <code>curl -fsSL https://raw.githubusercontent.com/vittormendes94-source/vandas/main/coletor/instalar.sh | sudo bash</code>
           </li>
           <li>
-            No app, cadastre o endereço de retorno exatamente assim: <code>{callbackUrl}</code>
+            Ele pede o endereço deste painel (<code>{location.origin}</code>) e o <strong>INGEST_TOKEN</strong> (o mesmo cadastrado no GitHub).
+          </li>
+          <li>Abra a tela do Zigbee2MQTT no endereço que o instalador mostrar, clique em “Permitir entrada” e segure o botão de cada sensor até piscar.</li>
+          <li>Em Configurações, escolha qual sensor Zigbee corresponde a S1, S2 e S3.</li>
+        </ol>
+        <h3 className="small" style={{ margin: '0.8rem 0 0.3rem' }}>Bomba (eWeLink, opcional)</h3>
+        <ol className="list">
+          <li>
+            Em <strong>dev.ewelink.cc</strong>, com a conta onde está o Sonoff da bomba, faça o cadastro de desenvolvedor pessoal e crie um app com o endereço de retorno <code>{callbackUrl}</code>
           </li>
           <li>
-            Guarde o <strong>APPID</strong> e o <strong>APP SECRET</strong> como segredos do servidor (<code>wrangler secret put EWELINK_APP_ID</code> e <code>EWELINK_APP_SECRET</code>). Nunca os envie por mensagem nem os coloque no código.
+            Cadastre o <strong>APPID</strong> e o <strong>APP SECRET</strong> como segredos no GitHub (<code>EWELINK_APP_ID</code>, <code>EWELINK_APP_SECRET</code>) e publique de novo. Nunca os envie por mensagem.
           </li>
-          <li>Informe o token de administração em Configurações e clique em “Conectar conta eWeLink”. Você entra na página oficial do eWeLink; a senha não passa por este sistema.</li>
-          <li>Em Configurações, escolha qual dispositivo corresponde a cada sensor e qual é o Sonoff da bomba.</li>
-          <li>A credencial pessoal do eWeLink vale 1 ano: anote a data em <code>EWELINK_APP_EXPIRES_AT</code> para o painel avisar com antecedência.</li>
+          <li>Clique em “Conectar conta eWeLink” (a senha é digitada na página oficial do eWeLink) e escolha o Sonoff da bomba em Configurações.</li>
         </ol>
       </section>
 
@@ -252,7 +276,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
         </div>
         <div className="stack" style={{ gap: '0.5rem' }}>
           <div>
-            <MeasuredChip /> <span className="small dim">leitura enviada por um sensor, com o horário da medição informado pelo próprio sensor (trigTime) e o horário de recebimento guardados separadamente.</span>
+            <MeasuredChip /> <span className="small dim">leitura enviada por um sensor, com o horário da medição (chegada da mensagem do sensor ao Zigbee2MQTT) e o horário de recebimento pelo servidor guardados separadamente.</span>
           </div>
           <div>
             <CalcChip /> <span className="small dim">calculado a partir das leituras: médias, diferenças, DPV, ponto de orvalho, extremos.</span>
@@ -300,5 +324,64 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
         </section>
       )}
     </main>
+  );
+}
+
+function CollectorCard({ col, nowMs, ingestConfigured }: { col: CollectorStatusDto | null; nowMs: number; ingestConfigured: boolean }) {
+  const age = col ? nowMs - Date.parse(col.lastContactAt) : null;
+  const stale = age !== null && age > COLLECTOR_STALE_MS;
+  const bad = !!col && (stale || !!col.problem || col.bridgeOnline === false || !col.mqttConnected);
+  const clockBad = !!col && Math.abs(col.clockSkewMs) > COLLECTOR_CLOCK_WARN_MS;
+  return (
+    <section className="card">
+      <div className="card__head">
+        <div>
+          <h2 className="card__title">Sensores: coletor local (Zigbee2MQTT)</h2>
+          <div className="card__sub">O computador do orquidário lê os sensores SNZB-02WD direto pelo rádio Zigbee e envia cada leitura para cá. Se a internet cair, ele guarda e reenvia depois.</div>
+        </div>
+        <Chip kind={!col ? 'warn' : bad ? 'bad' : clockBad ? 'warn' : 'ok'}>{!col ? 'Sem contato ainda' : stale ? 'Sem contato' : bad ? 'Com problema' : 'Funcionando'}</Chip>
+      </div>
+      {!ingestConfigured && (
+        <Notice kind="warn">
+          O servidor ainda não tem o segredo <code>INGEST_TOKEN</code>: cadastre-o no GitHub e publique de novo.
+        </Notice>
+      )}
+      {!col ? (
+        <div className="empty">O coletor ainda não se comunicou. Siga o passo a passo abaixo.</div>
+      ) : (
+        <>
+          <div className="kpi-grid" style={{ marginBottom: '0.8rem' }}>
+            <div>
+              <div className="tiny mute">Último contato</div>
+              <b style={{ color: stale ? 'var(--red)' : undefined }}>{formatAge(age!)}</b>
+              <div className="tiny dim">{formatDateTime(Date.parse(col.lastContactAt))}</div>
+            </div>
+            <div>
+              <div className="tiny mute">Última leitura recebida</div>
+              <b>{col.lastReadingAt ? formatAge(nowMs - Date.parse(col.lastReadingAt)) : '—'}</b>
+              <div className="tiny dim">{col.lastReadingAt ? formatDateTime(Date.parse(col.lastReadingAt)) : 'nenhuma ainda'}</div>
+            </div>
+            <div>
+              <div className="tiny mute">Zigbee2MQTT · MQTT</div>
+              <b style={{ color: col.bridgeOnline === false || !col.mqttConnected ? 'var(--red)' : undefined }}>
+                {col.bridgeOnline === true ? 'rodando' : col.bridgeOnline === false ? 'parado' : 'desconhecido'} · {col.mqttConnected ? 'conectado' : 'desconectado'}
+              </b>
+              <div className="tiny dim">
+                coletor {col.version} · ligado desde {formatDateTime(Date.parse(col.startedAt)).slice(0, 10)}
+              </div>
+            </div>
+            <div>
+              <div className="tiny mute">Fila · relógio</div>
+              <b style={{ color: col.queued > 0 || clockBad ? 'var(--amber)' : undefined }}>
+                {col.queued} na fila · {Math.abs(col.clockSkewMs) < 1000 ? 'relógio certo' : `${col.clockSkewMs > 0 ? '+' : '−'}${fmtNum(Math.abs(col.clockSkewMs) / 1000, 0)} s`}
+              </b>
+              <div className="tiny dim">{col.queued > 0 ? 'leituras guardadas esperando envio' : 'nada pendente'}</div>
+            </div>
+          </div>
+          {col.problem && <Notice kind="bad">{col.problem}</Notice>}
+          {col.lastRejected > 0 && <Notice kind="warn">No último envio, {col.lastRejected} leitura(s) foram recusadas por horário inválido (relógio do coletor errado ou leitura antiga demais).</Notice>}
+        </>
+      )}
+    </section>
   );
 }

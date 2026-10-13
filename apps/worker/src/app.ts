@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { ZodError } from 'zod';
-import { ConfigUpdateSchema, IngestReadingsBodySchema, derivePumpStatus, iso, isoOrNull, prepareReadings, readingToDto } from '@orq/core';
+import { ConfigUpdateSchema, IngestReadingsBodySchema, ZigbeeIngestBodySchema, derivePumpStatus, iso, isoOrNull, prepareReadings, readingToDto } from '@orq/core';
 import type { HistoryResponse, LiveResponse, ProviderDeviceDto, ReadingOutcome, SensorLinkDto } from '@orq/core';
 import { requireAdmin, requireIngest, requireView } from './auth';
 import type { Env } from './env';
@@ -15,10 +15,11 @@ import {
   historyHourly,
   historyRaw,
   latestReadings,
-  listProviderDevices,
+  listAllProviderDevices,
   persistReadings,
   saveConfig,
 } from './repo';
+import { collectorStatusDto, ingestZigbee } from './zigbee';
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -65,18 +66,20 @@ app.get('/api/meta', (c) => c.json({ viewProtected: !!c.env.VIEW_TOKEN, writeAut
 app.get('/api/live', requireView, async (c) => {
   const now = Date.now();
   const config = await getConfig(c.env.DB);
-  const [latest, devices, ewelink] = await Promise.all([
+  const [latest, devices, ewelink, collector] = await Promise.all([
     latestReadings(c.env.DB, config.sensors.map((s) => s.id)),
-    listProviderDevices(c.env.DB, PROVIDER),
+    listAllProviderDevices(c.env.DB),
     statusDto(c.env, c.env.DB, now),
+    collectorStatusDto(c.env.DB),
   ]);
   const byId = new Map(devices.map((d) => [d.deviceId, d]));
+  const ewelinkById = new Map(devices.filter((d) => d.provider === PROVIDER).map((d) => [d.deviceId, d]));
   const links: Record<string, SensorLinkDto> = {};
   for (const s of config.sensors) {
     const d = s.externalId ? byId.get(s.externalId) : undefined;
-    links[s.id] = { deviceId: s.externalId ?? null, deviceName: d?.name ?? null, online: d?.online ?? null, seenAt: isoOrNull(d?.seenAt) };
+    links[s.id] = { provider: d?.provider ?? null, deviceId: s.externalId ?? null, deviceName: d?.name ?? null, online: d?.online ?? null, seenAt: isoOrNull(d?.seenAt) };
   }
-  const pd = config.pump.deviceId ? byId.get(config.pump.deviceId) : undefined;
+  const pd = config.pump.deviceId ? ewelinkById.get(config.pump.deviceId) : undefined;
   const channel = pd?.switches ? (pd.switches[config.pump.outlet] ?? null) : (pd?.switchState ?? null);
   const pump = derivePumpStatus({ linked: !!config.pump.deviceId, seenAt: pd?.seenAt ?? null, online: pd?.online ?? null, switchState: pd?.kind === 'switch' ? channel : null }, now);
   const body: LiveResponse = {
@@ -85,7 +88,7 @@ app.get('/api/live', requireView, async (c) => {
     latest: Object.fromEntries([...latest].map(([id, r]) => [id, r ? readingToDto(r) : null])),
     links,
     pump: { comm: pump.comm, state: pump.state, seenAt: isoOrNull(pump.seenAt), deviceName: pd?.name ?? null },
-    integration: { ewelink, writeAuthConfigured: !!c.env.ADMIN_TOKEN, ingestAuthConfigured: !!c.env.INGEST_TOKEN },
+    integration: { ewelink, collector, writeAuthConfigured: !!c.env.ADMIN_TOKEN, ingestAuthConfigured: !!c.env.INGEST_TOKEN },
   };
   return c.json(body);
 });
@@ -119,10 +122,11 @@ app.get('/api/history', requireView, async (c) => {
   return c.json(body);
 });
 
-/** Dispositivos encontrados na conta eWeLink na última leitura (para vincular sensores e bomba). */
-app.get('/api/ewelink/devices', requireView, async (c) => {
-  const devices = await listProviderDevices(c.env.DB, PROVIDER);
+/** Dispositivos das integrações (coletor Zigbee e eWeLink), para vincular sensores e bomba. */
+app.get('/api/devices', requireView, async (c) => {
+  const devices = await listAllProviderDevices(c.env.DB);
   const out: ProviderDeviceDto[] = devices.map((d) => ({
+    provider: d.provider,
     deviceId: d.deviceId,
     name: d.name,
     uiid: d.uiid,
@@ -132,6 +136,7 @@ app.get('/api/ewelink/devices', requireView, async (c) => {
     temperatureC: d.temperatureC,
     humidityPct: d.humidityPct,
     switchState: d.switchState,
+    batteryPct: d.batteryPct,
     measuredAt: isoOrNull(d.measuredAt),
     seenAt: iso(d.seenAt),
   }));
@@ -192,6 +197,16 @@ app.post('/api/v1/ingest/readings', requireIngest, async (c) => {
   results.sort((a, b) => a.index - b.index);
   const count = (s: string) => results.filter((r) => r.status === s).length;
   return c.json({ accepted: count('accepted'), duplicates: count('duplicate'), rejected: count('rejected'), results });
+});
+
+/**
+ * Coletor local (Zigbee2MQTT): sinal de vida, lista de dispositivos e leituras dos sensores, num só envio.
+ * Leituras repetidas (mesmo sensor + instante) são ignoradas, então o coletor pode reenviar após queda de internet.
+ */
+app.post('/api/v1/ingest/zigbee', requireIngest, async (c) => {
+  const body = ZigbeeIngestBodySchema.parse(await readJson(c));
+  const now = Date.now();
+  return c.json(await ingestZigbee(c.env.DB, await getConfig(c.env.DB), body, now));
 });
 
 /* ------------------------------------------------ demais rotas ------------------------------------------------ */

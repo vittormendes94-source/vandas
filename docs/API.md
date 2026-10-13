@@ -6,16 +6,17 @@ Base: mesma origem da interface. JSON. Datas em ISO 8601 UTC (`...Z`) nas respos
 |---|---|---|---|
 | GET | `/api/health` | aberto | Saúde |
 | GET | `/api/meta` | aberto | Flags não sensíveis (se há token de visualização/edição/ingestão configurados) |
-| GET | `/api/live` | visualização | Configuração, última leitura de cada sensor (pode estar vencida), vínculo eWeLink de cada sensor, estado atual da bomba, saúde da integração |
+| GET | `/api/live` | visualização | Configuração, última leitura de cada sensor (pode estar vencida), vínculo de cada sensor, estado atual da bomba, saúde do coletor e do eWeLink |
 | GET | `/api/history?from&to&res&detail` | visualização | Histórico (ver abaixo) |
-| GET | `/api/ewelink/devices` | visualização | Aparelhos encontrados na última leitura do eWeLink (retrato, não histórico) |
+| GET | `/api/devices` | visualização | Aparelhos encontrados pelo coletor Zigbee e pelo eWeLink (retrato, não histórico) |
 | GET | `/api/config` | visualização | Configuração atual |
 | PUT | `/api/config` | **admin** | Grava configuração (controle de revisão) |
 | POST | `/api/ewelink/authorize` | **admin** | Devolve o endereço da página oficial de login do eWeLink |
 | GET | `/api/ewelink/callback` | `state` de uso único | Retorno do login; troca o código pelos tokens e redireciona para a interface |
 | POST | `/api/ewelink/poll` | **admin** | Lê o eWeLink agora |
 | POST | `/api/ewelink/disconnect` | **admin** | Apaga os tokens e o retrato dos aparelhos |
-| POST | `/api/v1/ingest/readings` | **ingestão** | Leituras — ver [CONTRATO-DE-LEITURAS.md](CONTRATO-DE-LEITURAS.md) |
+| POST | `/api/v1/ingest/zigbee` | **ingestão** | Coletor local: estado, aparelhos e leituras — ver [CONTRATO-DE-LEITURAS.md](CONTRATO-DE-LEITURAS.md) |
+| POST | `/api/v1/ingest/readings` | **ingestão** | Leituras genéricas — ver [CONTRATO-DE-LEITURAS.md](CONTRATO-DE-LEITURAS.md) |
 | POST | `/api/admin/maintenance` | **admin** | Aplica a retenção agora |
 
 **Acesso**: *visualização* = aberto, ou exige `VIEW_TOKEN` (`x-view-token`, `Authorization: Bearer` ou `?k=`) se configurado; o token de admin também lê. *admin* = `Authorization: Bearer <ADMIN_TOKEN>`. *ingestão* = `Authorization: Bearer <INGEST_TOKEN>`. Tokens diferentes não são intercambiáveis (exceto admin lendo).

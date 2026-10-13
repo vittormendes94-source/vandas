@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { AppConfigSchema, ROOM } from '@orq/core';
+import { AppConfigSchema, ROOM, fmtNum } from '@orq/core';
 import type { AppConfig, Limits, ProviderDeviceDto } from '@orq/core';
 import { PlanEditor } from '../components/PlanEditor';
 import { Chip, Notice } from '../components/ui';
@@ -65,7 +65,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
   const [devices, setDevices] = useState<ProviderDeviceDto[] | null>(null);
   useEffect(() => {
     const ac = new AbortController();
-    api.ewelinkDevices(ac.signal).then((r) => setDevices(r.devices)).catch(() => setDevices([]));
+    api.devices(ac.signal).then((r) => setDevices(r.devices)).catch(() => setDevices([]));
     return () => ac.abort();
   }, []);
 
@@ -192,7 +192,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
                   <span />
                 )}
                 <label className="field" style={{ gridColumn: '1 / -1' }}>
-                  <span>Dispositivo eWeLink deste sensor</span>
+                  <span>Sensor Zigbee deste ponto</span>
                   <DeviceSelect
                     devices={devices}
                     kind="climate"
@@ -265,7 +265,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         </div>
       </Section>
 
-      <Section title="Frescor dos dados e replay" sub="O sistema lê o eWeLink a cada 2 min, mas cada sensor só envia leitura nova quando o valor muda (ou periodicamente). Ajuste depois de observar a frequência real dos seus sensores.">
+      <Section title="Frescor dos dados e replay" sub="O SNZB-02WD envia leitura quando a temperatura muda 0,2 °C ou a umidade 1 %, e no mínimo a cada 1 hora. Com o padrão (atrasado após 60 min, sem comunicação após 180 min), um sensor parado é sinalizado. Ajuste se observar outra frequência.">
         <div className="form-grid">
           <Num label="Leitura “atualizada” até" unit="min" min={1} value={draft.freshness.freshMaxMin} onChange={(v) => set((d) => void (d.freshness.freshMaxMin = v as number))} hint="Acima disso o sensor fica ATRASADO e sai das médias e do mapa." />
           <Num label="“Sem comunicação” após" unit="min" min={1} value={draft.freshness.offlineAfterMin} onChange={(v) => set((d) => void (d.freshness.offlineAfterMin = v as number))} hint="Deve ser maior que o limite de atualizado." />
@@ -326,11 +326,12 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
 
 function DeviceSelect({ devices, kind, value, taken, onChange }: { devices: ProviderDeviceDto[] | null; kind: 'climate' | 'switch'; value: string | null; taken: string[]; onChange: (v: string | null) => void }) {
   if (devices === null) return <select className="input" disabled><option>Carregando…</option></select>;
-  const options = devices.filter((d) => d.kind === kind);
+  // Sensores: só os do coletor Zigbee (origem garantida). Bomba: Sonoff no eWeLink.
+  const options = devices.filter((d) => d.kind === kind && (kind === 'climate' ? d.provider === 'zigbee2mqtt' : d.provider === 'ewelink'));
   const known = value === null || options.some((d) => d.deviceId === value);
   const describe = (d: ProviderDeviceDto) =>
     kind === 'climate'
-      ? `${d.name} · ${d.temperatureC ?? '—'} °C · ${d.humidityPct ?? '—'} % UR${d.online === false ? ' · offline' : ''}`
+      ? `${d.name} · ${d.model ?? ''} · ${fmtNum(d.temperatureC, 1)} °C · ${fmtNum(d.humidityPct, 0)} % UR`
       : `${d.name} · ${d.switchState === 'on' ? 'ligado' : d.switchState === 'off' ? 'desligado' : '—'}${d.online === false ? ' · offline' : ''}`;
   return (
     <>
@@ -344,7 +345,7 @@ function DeviceSelect({ devices, kind, value, taken, onChange }: { devices: Prov
         ))}
       </select>
       {options.length === 0 && (
-        <small>{devices.length === 0 ? 'Nenhum dispositivo: conecte o eWeLink em "Dados e integração".' : kind === 'climate' ? 'Nenhum sensor de temperatura/umidade em formato suportado foi encontrado.' : 'Nenhum dispositivo liga/desliga encontrado.'}</small>
+        <small>{kind === 'climate' ? 'Nenhum sensor Zigbee ainda: instale o coletor e pareie os sensores (veja "Dados e integração").' : 'Nenhum Sonoff encontrado: conecte o eWeLink em "Dados e integração".'}</small>
       )}
     </>
   );

@@ -235,7 +235,7 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
       switchThing('bomba01', 'Bomba', { state: 'off' }),
     ];
     expect(await connect(mock)).toBe('/#/dados?ewelink=conectado');
-    const devs = (await (await call('/api/ewelink/devices')).json()) as { devices: ProviderDeviceDto[] };
+    const devs = (await (await call('/api/devices')).json()) as { devices: ProviderDeviceDto[] };
     expect(devs.devices.map((d) => `${d.deviceId}:${d.kind}`).sort()).toEqual(['bomba01:switch', 'snzb01:climate', 'snzb02:climate', 'snzb03:climate']);
 
     // Antes de vincular: nenhuma leitura é atribuída a sensor algum.
@@ -375,5 +375,83 @@ describe('registro de erros sem segredos', () => {
     expect(text).toContain('requestId');
     expect(text).not.toContain('boom');
     logError('teste', new Error(`x ${INGEST}`), env);
+  });
+});
+
+describe('coletor Zigbee2MQTT (origem principal dos sensores)', () => {
+  const IEEE1 = '0xa4c138000000aa01';
+  const IEEE2 = '0xa4c138000000aa02';
+  const collector = (over: Record<string, unknown> = {}) => ({
+    version: '1.0.0',
+    startedAt: iso(Date.now() - HOUR),
+    sentAt: iso(Date.now()),
+    mqttConnected: true,
+    bridgeOnline: true,
+    queued: 0,
+    problem: null,
+    ...over,
+  });
+  const device = (ieee: string, name: string, over: Record<string, unknown> = {}) => ({
+    ieee,
+    name,
+    model: 'SNZB-02WD',
+    vendor: 'SONOFF',
+    climate: true,
+    temperatureC: 25,
+    humidityPct: 70,
+    batteryPct: 100,
+    linkQuality: 120,
+    lastSeen: iso(Date.now() - MIN),
+    ...over,
+  });
+  const send = (body: unknown, token: string | null = INGEST) => post('/api/v1/ingest/zigbee', body, token);
+  const zr = (ieee: string, measuredAt: number, t = 26.1, h = 72.4) => ({ ieee, measuredAt: iso(measuredAt), temperatureC: t, humidityPct: h, batteryPct: 98, linkQuality: 110 });
+  const linkS1 = async () => {
+    const c = await getConfig(env.DB);
+    c.sensors[0]!.externalId = IEEE1;
+    await saveConfig(env.DB, c, Date.now());
+  };
+
+  it('exige o token de ingestão e recusa campos desconhecidos', async () => {
+    expect((await send({ collector: collector() }, null)).status).toBe(401);
+    expect((await send({ collector: collector() }, ADMIN)).status).toBe(401);
+    expect((await send({ collector: collector(), extra: 1 })).status).toBe(400);
+    expect((await send({ collector: collector(), readings: [{ ...zr(IEEE1, Date.now()), ieee: 'abc' }] })).status).toBe(400);
+  });
+
+  it('lista os sensores Zigbee para vincular e não grava leitura de sensor não vinculado', async () => {
+    const t = Date.now() - 2 * MIN;
+    const r = await send({ collector: collector(), devices: [device(IEEE1, 'Orquidário 1'), device(IEEE2, 'Orquidário 2')], readings: [zr(IEEE1, t)] });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ accepted: 0, unlinked: 1 });
+    const devs = (await (await call('/api/devices')).json()) as { devices: ProviderDeviceDto[] };
+    expect(devs.devices.map((d) => `${d.provider}:${d.deviceId}:${d.kind}`).sort()).toEqual([`zigbee2mqtt:${IEEE1}:climate`, `zigbee2mqtt:${IEEE2}:climate`]);
+    expect(Object.values((await live()).latest).every((x) => x === null)).toBe(true);
+  });
+
+  it('vinculado: grava com o horário da medição, ignora reenvio e recusa relógio adiantado', async () => {
+    await linkS1();
+    const t = Date.now() - 3 * MIN;
+    const first = await (await send({ collector: collector(), devices: [device(IEEE1, 'Orquidário 1')], readings: [zr(IEEE1, t), zr(IEEE2, t)] })).json();
+    expect(first).toMatchObject({ accepted: 1, unlinked: 1, duplicates: 0 });
+    // Reenvio após queda de internet: não duplica.
+    expect(await (await send({ collector: collector({ queued: 1 }), readings: [zr(IEEE1, t)] })).json()).toMatchObject({ accepted: 0, duplicates: 1 });
+    const bad = await (await send({ collector: collector(), readings: [zr(IEEE1, Date.now() + 10 * MIN)] })).json();
+    expect(bad).toMatchObject({ rejected: 1, results: [{ status: 'rejected', reason: 'future_timestamp' }] });
+
+    const l = await live();
+    expect(l.latest.s1).toMatchObject({ temperatureC: 26.1, humidityPct: 72.4, measuredAt: iso(t), timeBasis: 'source', batteryPct: 98, linkQuality: 110 });
+    expect(l.links.s1).toMatchObject({ deviceId: IEEE1, deviceName: 'Orquidário 1' });
+    expect(l.integration.collector).toMatchObject({ version: '1.0.0', mqttConnected: true, bridgeOnline: true, lastReadingAt: iso(t), lastRejected: 1 });
+    expect(Math.abs(l.integration.collector!.clockSkewMs)).toBeLessThan(5000);
+  });
+
+  it('registra a diferença de relógio do coletor para o painel avisar', async () => {
+    await send({ collector: collector({ sentAt: iso(Date.now() - 10 * MIN) }) });
+    expect((await live()).integration.collector!.clockSkewMs).toBeLessThan(-9 * MIN);
+  });
+
+  it('sem nenhum contato do coletor: status nulo', async () => {
+    expect((await live()).integration.collector).toBeNull();
   });
 });

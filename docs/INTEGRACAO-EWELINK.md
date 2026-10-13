@@ -1,4 +1,6 @@
-# Integração eWeLink
+# Integração eWeLink (bomba)
+
+**Uso atual: só o estado ligada/desligada do Sonoff da bomba.** Desde 13/10/2026, os sensores são lidos localmente pelo Zigbee2MQTT ([INSTALACAO.md](INSTALACAO.md)), porque a documentação não garante que o app pessoal do eWeLink entregue o SNZB-02WD. A leitura de sensores pelo eWeLink continua no código, mas a tela de Configurações só oferece sensores do coletor Zigbee.
 
 **Estado: implementada conforme a documentação oficial; ainda NÃO testada com uma conta e aparelhos reais.**
 Foi testada contra um servidor que reproduz os formatos documentados e confere as assinaturas. O cálculo da assinatura bate com os **vetores de exemplo publicados pelo eWeLink**. A primeira conexão com a sua conta é o teste definitivo.

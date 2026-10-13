@@ -9,3 +9,4 @@ export * from './history';
 export * from './csv';
 export * from './ingest';
 export * from './dto';
+export * from './zigbee';

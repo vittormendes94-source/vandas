@@ -295,6 +295,12 @@ export async function listProviderDevices(db: D1Database, provider: string): Pro
   return (r.results ?? []).map(rowToDevice);
 }
 
+/** Dispositivos de todas as integrações (eWeLink e Zigbee2MQTT). */
+export async function listAllProviderDevices(db: D1Database): Promise<ProviderDevice[]> {
+  const r = await db.prepare('SELECT * FROM provider_devices ORDER BY provider, name').all<Row>();
+  return (r.results ?? []).map(rowToDevice);
+}
+
 export async function clearProviderDevices(db: D1Database, provider: string): Promise<void> {
   await db.prepare('DELETE FROM provider_devices WHERE provider = ?1').bind(provider).run();
 }

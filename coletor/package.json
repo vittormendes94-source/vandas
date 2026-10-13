@@ -1,0 +1,17 @@
+{
+  "name": "orquidario-coletor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Coletor local: lê os sensores Zigbee pelo Zigbee2MQTT e envia ao Orquidário Inteligente.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "mqtt": "5.16.0"
+  }
+}

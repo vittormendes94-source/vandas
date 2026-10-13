@@ -103,7 +103,7 @@ export const api = {
       { signal: opts.signal },
     ),
   saveConfig: (config: AppConfig) => request<AppConfig>('/api/config', { method: 'PUT', body: config, admin: true }),
-  ewelinkDevices: (signal?: AbortSignal) => request<{ devices: ProviderDeviceDto[] }>('/api/ewelink/devices', { signal }),
+  devices: (signal?: AbortSignal) => request<{ devices: ProviderDeviceDto[] }>('/api/devices', { signal }),
   ewelinkAuthorize: () => request<{ url: string }>('/api/ewelink/authorize', { method: 'POST', body: {}, admin: true }),
   ewelinkPoll: () => request<{ ran: boolean; reason?: string; devices?: number; inserted?: number }>('/api/ewelink/poll', { method: 'POST', body: {}, admin: true }),
   ewelinkDisconnect: () => request<{ ok: boolean }>('/api/ewelink/disconnect', { method: 'POST', body: {}, admin: true }),

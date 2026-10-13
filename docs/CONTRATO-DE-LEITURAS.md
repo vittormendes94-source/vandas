@@ -1,8 +1,38 @@
-# Contrato de leituras (ingestão genérica v1)
+# Contrato de leituras
 
-A origem principal é o **eWeLink** (lido automaticamente pelo servidor). Esta rota existe para outras origens, se um dia forem usadas (ESP32, script, Home Assistant). As leituras do eWeLink e desta rota passam pela **mesma gravação idempotente**.
+Há duas rotas de entrada, com o mesmo token (`INGEST_TOKEN`) e a **mesma gravação idempotente** (chave sensor + instante da medição):
+- **`POST /api/v1/ingest/zigbee`:** usada pelo **coletor local**, a origem principal dos sensores. Identifica os sensores pelo endereço IEEE do Zigbee.
+- **`POST /api/v1/ingest/readings`:** genérica, para outras origens (ESP32, scripts). Identifica os sensores por S1, S2, S3.
 
-## Leituras — `POST /api/v1/ingest/readings`
+## Coletor Zigbee — `POST /api/v1/ingest/zigbee`
+
+Um envio leva o estado do coletor (sempre), a lista de dispositivos (a cada 5 min ou quando muda) e até 100 leituras novas.
+
+```json
+{
+  "collector": { "version": "1.0.0", "startedAt": "2026-10-13T12:00:00Z", "sentAt": "2026-10-13T12:05:00Z",
+                 "mqttConnected": true, "bridgeOnline": true, "queued": 0, "problem": null },
+  "devices": [ { "ieee": "0xa4c1380000000001", "name": "Orquidario 1", "model": "SNZB-02WD", "vendor": "SONOFF",
+                 "climate": true, "temperatureC": 25.1, "humidityPct": 70.2, "batteryPct": 100,
+                 "linkQuality": 150, "lastSeen": "2026-10-13T12:04:58Z" } ],
+  "readings": [ { "ieee": "0xa4c1380000000001", "measuredAt": "2026-10-13T12:04:58Z",
+                  "temperatureC": 25.1, "humidityPct": 70.2, "batteryPct": 100, "linkQuality": 150 } ]
+}
+```
+
+| Regra | Comportamento |
+|---|---|
+| Sensor não vinculado em Configurações | `unlinked`: a leitura não é gravada, mas o aparelho aparece para vincular |
+| `measuredAt` mais de 5 min no futuro / mais antigo que a retenção | `rejected` (`future_timestamp` / `too_old`) |
+| Reenvio da mesma leitura | `duplicate` (não grava de novo) |
+| `sentAt` do coletor × relógio do servidor | Diferença guardada e exibida; acima de 2 min, o painel avisa |
+| Campos desconhecidos | 400 |
+
+**Resposta:** `{ accepted, duplicates, unlinked, rejected, results: [{ index, status, reason? }] }`.
+
+**Horário da medição:** é o `last_seen` do Zigbee2MQTT, o instante em que a mensagem do sensor chegou ao adaptador. O SNZB-02WD envia temperatura e umidade separadamente. A cada mensagem nova, o coletor monta a leitura com o valor que chegou e o último valor informado da outra grandeza; pela regra do aparelho, essa outra não mudou mais que 0,2 °C ou 1 % desde então.
+
+## Genérica — `POST /api/v1/ingest/readings`
 
 Cabeçalhos: `Authorization: Bearer <INGEST_TOKEN>`, `Content-Type: application/json`. Corpo máximo: 64 KB. 
 

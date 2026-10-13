@@ -30,14 +30,15 @@ jobs:
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           VIEW_TOKEN: ${{ secrets.VIEW_TOKEN }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
           EWELINK_APP_ID: ${{ secrets.EWELINK_APP_ID }}
           EWELINK_APP_SECRET: ${{ secrets.EWELINK_APP_SECRET }}
         run: |
           falta=0
-          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ADMIN_TOKEN VIEW_TOKEN; do
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ADMIN_TOKEN VIEW_TOKEN INGEST_TOKEN; do
             if [ -z "${!v}" ]; then echo "::error::Falta o segredo $v (veja docs/PUBLICACAO.md)"; falta=1; fi
           done
-          for v in ADMIN_TOKEN VIEW_TOKEN; do
+          for v in ADMIN_TOKEN VIEW_TOKEN INGEST_TOKEN; do
             val="${!v}"
             if [ -n "$val" ] && [ ${#val} -lt 24 ]; then echo "::error::$v precisa ter pelo menos 24 caracteres"; falta=1; fi
           done
@@ -124,6 +125,7 @@ jobs:
               echo "|---|---|"
               echo "| Painel | $url |"
               echo "| TV | $url/?tv=1&k=<VIEW_TOKEN> |"
-              echo "| Retorno a cadastrar no app eWeLink | $url/api/ewelink/callback |"
+              echo "| Endereço para o instalador do coletor | $url |"
+              echo "| Retorno a cadastrar no app eWeLink (bomba) | $url/api/ewelink/callback |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

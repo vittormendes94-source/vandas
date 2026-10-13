@@ -17,7 +17,7 @@
     "dev:web": "npm run dev -w @orq/web",
     "build": "npm run build -w @orq/web",
     "typecheck": "npm run typecheck -w @orq/core && npm run typecheck -w @orq/worker && npm run typecheck -w @orq/web",
-    "test": "npm run test -w @orq/core && npm run test -w @orq/worker",
+    "test": "npm run test -w @orq/core && npm run test -w @orq/worker && npm test --prefix coletor",
     "db:migrate:local": "npm run db:migrate:local -w @orq/worker",
     "db:reset:local": "node scripts/reset-local-db.mjs",
     "deploy": "echo 'Publicação é manual e exige aprovação. Veja docs/PUBLICACAO.md' && exit 1",

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  COLLECTOR_CLOCK_WARN_MS,
+  COLLECTOR_STALE_MS,
   DAY,
   HOUR,
   MIN,
@@ -16,7 +18,7 @@ import {
   summarizePeriod,
   summarizeSeries,
 } from '@orq/core';
-import type { Gap, Reading } from '@orq/core';
+import type { Gap, LiveResponse, Reading } from '@orq/core';
 import { MapCard } from '../components/EnvMap';
 import { AlertsCard, IndicatorsTable, KpiGrid, PeriodCard, SensorCards } from '../components/Indicators';
 import { IrrigationCard } from '../components/IrrigationPlan';
@@ -53,7 +55,7 @@ export function Dashboard({ live, nowMs, tv, onGoConfig, onGoData }: Props) {
   const [speed, setSpeed] = useState(30);
   const [replayHours, setReplayHours] = useState(24);
 
-  // Período dos gráficos: renova a cada 5 min (a leitura do eWeLink é a cada 2 min).
+  // Período dos gráficos: renova a cada 5 min.
   const liveAnchor = Math.floor(nowMs / (5 * MIN)) * (5 * MIN);
   const period = PERIODS.find((p) => p.id === periodId)!;
   const trendRange = useMemo(() => (data ? { from: liveAnchor - period.span, to: liveAnchor } : null), [data, liveAnchor, period.span]);
@@ -109,7 +111,6 @@ export function Dashboard({ live, nowMs, tv, onGoConfig, onGoData }: Props) {
 
   const latest = new Map<string, Reading | null>(Object.entries(data.latest).map(([id, r]) => [id, r ? readingFromDto(r) : null]));
   const noReadingsEver = [...latest.values()].every((r) => r === null);
-  const eu = data.integration.ewelink;
   const inReplay = replayOn && replayRange !== null && replayHist.data !== null;
   const snapshot = inReplay ? snapshotAtInstant(config, bySensor, at, (hourly ? HOURLY_TOLERANCE_MIN : config.replay.toleranceMin) * MIN) : buildSnapshot(config, latest, nowMs);
   const liveSnapshot = buildSnapshot(config, latest, nowMs);
@@ -134,9 +135,7 @@ export function Dashboard({ live, nowMs, tv, onGoConfig, onGoData }: Props) {
 
   return (
     <main className="container">
-      {!tv && (!eu.connected || unlinked > 0 || eu.lastError) && (
-        <SetupNotice connected={eu.connected} configured={eu.configured} unlinked={unlinked} error={eu.lastError?.message ?? null} failures={eu.consecutiveFailures} onGoData={onGoData} onGoConfig={onGoConfig} />
-      )}
+      {!tv && <SetupNotices integration={data.integration} unlinked={unlinked} nowMs={nowMs} onGoData={onGoData} onGoConfig={onGoConfig} />}
       {noReadingsEver && (
         <Notice kind="warn">
           <strong>Aguardando a primeira leitura dos sensores.</strong> Nada é exibido como medido enquanto não houver leitura real.
@@ -243,33 +242,34 @@ export function Dashboard({ live, nowMs, tv, onGoConfig, onGoData }: Props) {
   );
 }
 
-function SetupNotice(p: { connected: boolean; configured: boolean; unlinked: number; error: string | null; failures: number; onGoData: () => void; onGoConfig: () => void }) {
-  if (p.connected && p.error) {
-    return (
-      <Notice kind="bad">
-        <strong>Falha na leitura do eWeLink ({p.failures}×):</strong> {p.error}{' '}
-        <button type="button" className="btn btn--sm" onClick={p.onGoData}>
-          Ver integração
-        </button>
-      </Notice>
-    );
+function SetupNotices(p: { integration: LiveResponse['integration']; unlinked: number; nowMs: number; onGoData: () => void; onGoConfig: () => void }) {
+  const out: { kind: 'warn' | 'bad'; title: string; text: string; go: 'data' | 'config' }[] = [];
+  const c = p.integration.collector;
+  const eu = p.integration.ewelink;
+  if (!c) {
+    out.push({ kind: 'warn', title: 'Coletor local ainda não fez contato.', text: 'Os sensores chegam pelo computador do orquidário (Zigbee2MQTT). Instale-o e confira o token de envio.', go: 'data' });
+  } else {
+    const age = p.nowMs - Date.parse(c.lastContactAt);
+    if (age > COLLECTOR_STALE_MS)
+      out.push({ kind: 'bad', title: `Coletor sem contato há ${formatAge(age)}.`, text: 'Se só a internet caiu, as leituras ficam guardadas nele e chegam quando ela voltar. Se faltou energia, confira o computador do orquidário.', go: 'data' });
+    else if (c.problem) out.push({ kind: 'bad', title: 'Coletor com problema:', text: c.problem, go: 'data' });
+    else if (c.bridgeOnline === false || !c.mqttConnected)
+      out.push({ kind: 'bad', title: 'Zigbee2MQTT parado no computador do orquidário.', text: 'Os sensores não estão sendo lidos. Veja "Dados e integração".', go: 'data' });
+    if (Math.abs(c.clockSkewMs) > COLLECTOR_CLOCK_WARN_MS)
+      out.push({ kind: 'warn', title: 'Relógio do coletor errado.', text: `Diferença de ${formatAge(Math.abs(c.clockSkewMs))} em relação ao servidor; leituras com horário no futuro são recusadas. Confira a internet do computador do orquidário.`, go: 'data' });
   }
-  if (!p.connected) {
-    return (
-      <Notice kind="warn">
-        <strong>eWeLink não conectado.</strong> {p.configured ? 'Conecte sua conta para receber as leituras.' : 'Falta configurar a credencial do app eWeLink no servidor.'}{' '}
-        <button type="button" className="btn btn--sm" onClick={p.onGoData}>
-          Dados e integração
-        </button>
-      </Notice>
-    );
-  }
+  if (p.unlinked > 0) out.push({ kind: 'warn', title: `${p.unlinked} sensor(es) sem vínculo.`, text: 'Escolha qual sensor Zigbee corresponde a cada ponto do mapa.', go: 'config' });
+  if (eu.connected && eu.lastError) out.push({ kind: 'bad', title: `Bomba: falha na leitura do eWeLink (${eu.consecutiveFailures}×):`, text: eu.lastError.message, go: 'data' });
   return (
-    <Notice kind="warn">
-      <strong>{p.unlinked} sensor(es) sem vínculo.</strong> Escolha qual dispositivo eWeLink corresponde a cada sensor.{' '}
-      <button type="button" className="btn btn--sm" onClick={p.onGoConfig}>
-        Configurações
-      </button>
-    </Notice>
+    <>
+      {out.map((n) => (
+        <Notice key={n.title} kind={n.kind}>
+          <strong>{n.title}</strong> {n.text}{' '}
+          <button type="button" className="btn btn--sm" onClick={n.go === 'data' ? p.onGoData : p.onGoConfig}>
+            {n.go === 'data' ? 'Dados e integração' : 'Configurações'}
+          </button>
+        </Notice>
+      ))}
+    </>
   );
 }

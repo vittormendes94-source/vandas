@@ -20,6 +20,8 @@ export interface ReadingDto {
 
 /** Situação informada pelo provedor (eWeLink) para o dispositivo vinculado a um sensor. */
 export interface SensorLinkDto {
+  /** 'zigbee2mqtt' ou 'ewelink'. null = não vinculado ou dispositivo ainda não visto. */
+  provider: string | null;
   deviceId: string | null;
   deviceName: string | null;
   /** Online segundo o eWeLink na última leitura da integração. null = não informado / não vinculado. */
@@ -54,8 +56,26 @@ export interface EwelinkStatusDto {
   appExpiresAt: string | null;
 }
 
+/** Coletor local (Zigbee2MQTT). null = nunca fez contato. */
+export interface CollectorStatusDto {
+  lastContactAt: string;
+  version: string;
+  startedAt: string;
+  mqttConnected: boolean;
+  bridgeOnline: boolean | null;
+  queued: number;
+  /** Relógio do coletor − relógio do servidor (ms), medido no último contato. */
+  clockSkewMs: number;
+  lastReadingAt: string | null;
+  /** Leituras recusadas no último envio (relógio errado ou leitura antiga demais). */
+  lastRejected: number;
+  /** Problema de configuração informado pelo coletor. */
+  problem: string | null;
+}
+
 export interface IntegrationStatusDto {
   ewelink: EwelinkStatusDto;
+  collector: CollectorStatusDto | null;
   writeAuthConfigured: boolean;
   ingestAuthConfigured: boolean;
 }
@@ -71,8 +91,10 @@ export interface LiveResponse {
   integration: IntegrationStatusDto;
 }
 
-/** Dispositivo encontrado na conta eWeLink (para vincular sensores e bomba em Configurações). */
+/** Dispositivo encontrado numa integração (eWeLink ou Zigbee2MQTT), para vincular sensores e bomba em Configurações. */
 export interface ProviderDeviceDto {
+  /** 'ewelink' ou 'zigbee2mqtt'. */
+  provider: string;
   deviceId: string;
   name: string;
   uiid: number | null;
@@ -83,6 +105,7 @@ export interface ProviderDeviceDto {
   temperatureC: number | null;
   humidityPct: number | null;
   switchState: 'on' | 'off' | null;
+  batteryPct: number | null;
   measuredAt: string | null;
   seenAt: string;
 }
