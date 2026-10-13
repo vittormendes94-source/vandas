@@ -31,17 +31,22 @@ jobs:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           VIEW_TOKEN: ${{ secrets.VIEW_TOKEN }}
           INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          SWITCHBOT_TOKEN: ${{ secrets.SWITCHBOT_TOKEN }}
+          SWITCHBOT_SECRET: ${{ secrets.SWITCHBOT_SECRET }}
           EWELINK_APP_ID: ${{ secrets.EWELINK_APP_ID }}
           EWELINK_APP_SECRET: ${{ secrets.EWELINK_APP_SECRET }}
         run: |
           falta=0
-          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ADMIN_TOKEN VIEW_TOKEN INGEST_TOKEN; do
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ADMIN_TOKEN VIEW_TOKEN; do
             if [ -z "${!v}" ]; then echo "::error::Falta o segredo $v (veja docs/PUBLICACAO.md)"; falta=1; fi
           done
           for v in ADMIN_TOKEN VIEW_TOKEN INGEST_TOKEN; do
             val="${!v}"
             if [ -n "$val" ] && [ ${#val} -lt 24 ]; then echo "::error::$v precisa ter pelo menos 24 caracteres"; falta=1; fi
           done
+          if [ -z "$SWITCHBOT_TOKEN" ] || [ -z "$SWITCHBOT_SECRET" ]; then
+            echo "::warning::SWITCHBOT_TOKEN/SWITCHBOT_SECRET ainda não cadastrados: o painel publica, mas os sensores ficam para depois (rode de novo quando tiver)."
+          fi
           if [ -z "$EWELINK_APP_ID" ] || [ -z "$EWELINK_APP_SECRET" ]; then
             echo "::warning::EWELINK_APP_ID/EWELINK_APP_SECRET ainda não cadastrados: o painel publica, mas a conexão eWeLink fica para depois (rode de novo quando tiver)."
           fi
@@ -92,6 +97,8 @@ jobs:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           VIEW_TOKEN: ${{ secrets.VIEW_TOKEN }}
           INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          SWITCHBOT_TOKEN: ${{ secrets.SWITCHBOT_TOKEN }}
+          SWITCHBOT_SECRET: ${{ secrets.SWITCHBOT_SECRET }}
           EWELINK_APP_ID: ${{ secrets.EWELINK_APP_ID }}
           EWELINK_APP_SECRET: ${{ secrets.EWELINK_APP_SECRET }}
           EWELINK_APP_EXPIRES_AT: ${{ vars.EWELINK_APP_EXPIRES_AT }}
@@ -99,7 +106,7 @@ jobs:
           secrets="$RUNNER_TEMP/segredos.json"
           umask 077
           node -e '
-            const keys = ["ADMIN_TOKEN", "VIEW_TOKEN", "INGEST_TOKEN", "EWELINK_APP_ID", "EWELINK_APP_SECRET"];
+            const keys = ["ADMIN_TOKEN", "VIEW_TOKEN", "INGEST_TOKEN", "SWITCHBOT_TOKEN", "SWITCHBOT_SECRET", "EWELINK_APP_ID", "EWELINK_APP_SECRET"];
             const out = Object.fromEntries(keys.filter((k) => process.env[k]).map((k) => [k, process.env[k]]));
             require("fs").writeFileSync(process.argv[1], JSON.stringify(out));
           ' "$secrets"
@@ -125,7 +132,6 @@ jobs:
               echo "|---|---|"
               echo "| Painel | $url |"
               echo "| TV | $url/?tv=1&k=<VIEW_TOKEN> |"
-              echo "| Endereço para o instalador do coletor | $url |"
               echo "| Retorno a cadastrar no app eWeLink (bomba) | $url/api/ewelink/callback |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

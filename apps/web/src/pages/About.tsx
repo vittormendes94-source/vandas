@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { COLLECTOR_CLOCK_WARN_MS, COLLECTOR_STALE_MS, DAY, fmtNum, formatAge, formatDateTime } from '@orq/core';
-import type { CollectorStatusDto, ProviderDeviceDto } from '@orq/core';
+import type { CollectorStatusDto, ProviderDeviceDto, SwitchbotStatusDto } from '@orq/core';
 import { CalcChip, Chip, EstChip, MeasuredChip, Notice } from '../components/ui';
 import { hashQuery } from '../hooks/useHashRoute';
 import type { LiveState } from '../hooks/useLive';
@@ -21,6 +21,7 @@ const CALLBACK_REASON: Record<string, string> = {
 export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () => void }; meta: Meta; nowMs: number }) {
   const eu = live.data?.integration.ewelink;
   const col = live.data?.integration.collector ?? null;
+  const sb = live.data?.integration.switchbot;
   const config = live.data?.config;
   const [devices, setDevices] = useState<ProviderDeviceDto[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
       .catch(() => setDevices([]));
   useEffect(() => {
     loadDevices();
-  }, [eu?.lastSuccessAt, col?.lastContactAt]);
+  }, [eu?.lastSuccessAt, col?.lastContactAt, sb?.lastSuccessAt]);
 
   const run = async (what: string, fn: () => Promise<void>) => {
     setBusy(what);
@@ -68,7 +69,28 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
     <main className="container">
       {msg && <Notice kind={msg.kind === 'bad' ? 'bad' : undefined}>{msg.text}</Notice>}
 
-      <CollectorCard col={col} nowMs={nowMs} ingestConfigured={meta.ingestAuthConfigured} />
+      {sb && (
+        <SwitchbotCard
+          sb={sb}
+          nowMs={nowMs}
+          busy={busy}
+          hasAdmin={hasAdmin}
+          onPoll={() =>
+            run('sbpoll', async () => {
+              const r = await api.switchbotPoll();
+              live.refresh();
+              await loadDevices();
+              setMsg(
+                r.reason && r.reason !== 'device'
+                  ? { kind: 'bad', text: `A leitura falhou (${r.reason}). Veja o erro no cartão SwitchBot.` }
+                  : { kind: 'ok', text: `Leitura concluída: ${r.devices ?? 0} aparelho(s) na conta, ${r.inserted ?? 0} leitura(s) nova(s).` },
+              );
+            })
+          }
+        />
+      )}
+
+      {col && <CollectorCard col={col} nowMs={nowMs} ingestConfigured={meta.ingestAuthConfigured} />}
 
       <section className="card">
         <div className="card__head">
@@ -178,12 +200,12 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
         <div className="card__head">
           <div>
             <h2 className="card__title">Dispositivos encontrados</h2>
-            <div className="card__sub">Sensores Zigbee (coletor) e aparelhos da conta eWeLink. Retrato atual, não é histórico. Vincule em Configurações.</div>
+            <div className="card__sub">Aparelhos das contas SwitchBot e eWeLink (e do coletor Zigbee, se houver). Retrato atual, não é histórico. Vincule em Configurações.</div>
           </div>
           <Chip kind="plain">{devices?.length ?? 0}</Chip>
         </div>
         {!devices || devices.length === 0 ? (
-          <div className="empty">Nenhum dispositivo ainda. Os sensores aparecem aqui depois de pareados no Zigbee2MQTT; o Sonoff da bomba, depois de conectar o eWeLink.</div>
+          <div className="empty">Nenhum dispositivo ainda. Os sensores aparecem depois de cadastrar a credencial SwitchBot e clicar em "Ler agora"; o Sonoff da bomba, depois de conectar o eWeLink.</div>
         ) : (
           <div className="table-wrap">
             <table className="table">
@@ -208,9 +230,15 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
                         {d.model ? ` · ${d.model}` : ''}
                       </div>
                     </td>
-                    <td>{d.provider === 'zigbee2mqtt' ? 'Zigbee' : 'eWeLink'}</td>
+                    <td>{d.provider === 'switchbot' ? 'SwitchBot' : d.provider === 'zigbee2mqtt' ? 'Zigbee' : 'eWeLink'}</td>
                     <td>
-                      {d.kind === 'climate' ? <Chip kind="ok">Temperatura/umidade</Chip> : d.kind === 'switch' ? <Chip kind="plain">Liga/desliga</Chip> : d.uiid !== null && BRIDGE_UIIDS.has(d.uiid) ? <Chip kind="plain">Ponte Zigbee</Chip> : <Chip kind="warn">Não suportado (UIID {d.uiid ?? '?'})</Chip>}
+                      {d.kind === 'climate' ? <Chip kind="ok">Temperatura/umidade</Chip> : d.kind === 'switch' ? <Chip kind="plain">Liga/desliga</Chip> : d.uiid !== null && BRIDGE_UIIDS.has(d.uiid) ? (
+                        <Chip kind="plain">Ponte Zigbee</Chip>
+                      ) : d.provider === 'switchbot' && d.model?.startsWith('Hub') ? (
+                        <Chip kind="plain">Hub</Chip>
+                      ) : (
+                        <Chip kind="warn">Não suportado{d.uiid !== null ? ` (UIID ${d.uiid})` : ''}</Chip>
+                      )}
                     </td>
                     <td>
                       {d.online === true ? (
@@ -234,7 +262,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
             </table>
           </div>
         )}
-        {devices?.some((d) => d.kind === 'unsupported' && !(d.uiid !== null && BRIDGE_UIIDS.has(d.uiid))) && (
+        {devices?.some((d) => d.kind === 'unsupported' && !(d.uiid !== null && BRIDGE_UIIDS.has(d.uiid)) && !(d.provider === 'switchbot' && d.model?.startsWith('Hub'))) && (
           <p className="tiny mute" style={{ margin: '0.5rem 0 0' }}>
             “Não suportado”: aparelho que não mede temperatura e umidade (ou, no eWeLink, modelo fora da documentação pública). Não é lido.
           </p>
@@ -245,20 +273,19 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
         <div className="card__head">
           <h2 className="card__title">Passo a passo</h2>
         </div>
-        <h3 className="small" style={{ margin: '0 0 0.3rem' }}>Sensores (coletor local)</h3>
+        <h3 className="small" style={{ margin: '0 0 0.3rem' }}>Sensores (SwitchBot)</h3>
         <ol className="list">
+          <li>No app SwitchBot, adicione o <strong>Hub Mini</strong> (na tomada, Wi-Fi 2,4 GHz) e os 3 <strong>Outdoor Meter</strong>. Dê nomes claros, como “Orquídeas 1”.</li>
           <li>
-            No computador do orquidário (Raspberry Pi ou notebook com Linux), com o adaptador <strong>SONOFF ZBDongle</strong> conectado, rode o instalador:
-            <br />
-            <code>curl -fsSL https://raw.githubusercontent.com/vittormendes94-source/vandas/main/coletor/instalar.sh | sudo bash</code>
+            Pegue o token e o segredo: <strong>Perfil → Preferências → Sobre</strong>, toque 10 vezes em “Versão do app”, abra <strong>Opções de desenvolvedor</strong> e copie o <strong>Token</strong> e o <strong>Secret</strong>.
           </li>
           <li>
-            Ele pede o endereço deste painel (<code>{location.origin}</code>) e o <strong>INGEST_TOKEN</strong> (o mesmo cadastrado no GitHub).
+            Cadastre os dois como segredos no GitHub (<code>SWITCHBOT_TOKEN</code>, <code>SWITCHBOT_SECRET</code>) e publique de novo. Nunca os envie por mensagem.
           </li>
-          <li>Abra a tela do Zigbee2MQTT no endereço que o instalador mostrar, clique em “Permitir entrada” e segure o botão de cada sensor até piscar.</li>
-          <li>Em Configurações, escolha qual sensor Zigbee corresponde a S1, S2 e S3.</li>
+          <li>Aqui, clique em “Ler agora”. Os sensores aparecem na lista abaixo; em Configurações, escolha qual corresponde a S1, S2 e S3.</li>
+          <li>Se um sensor aparecer como “sem comunicação”, abra o sensor no app e ative o serviço de nuvem (“Cloud Service”), se a opção existir.</li>
         </ol>
-        <h3 className="small" style={{ margin: '0.8rem 0 0.3rem' }}>Bomba (eWeLink, opcional)</h3>
+        <h3 className="small" style={{ margin: '0.8rem 0 0.3rem' }}>Bomba (eWeLink)</h3>
         <ol className="list">
           <li>
             Em <strong>dev.ewelink.cc</strong>, com a conta onde está o Sonoff da bomba, faça o cadastro de desenvolvedor pessoal e crie um app com o endereço de retorno <code>{callbackUrl}</code>
@@ -276,7 +303,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
         </div>
         <div className="stack" style={{ gap: '0.5rem' }}>
           <div>
-            <MeasuredChip /> <span className="small dim">leitura enviada por um sensor, com o horário da medição (chegada da mensagem do sensor ao Zigbee2MQTT) e o horário de recebimento pelo servidor guardados separadamente.</span>
+            <MeasuredChip /> <span className="small dim">leitura enviada por um sensor. SwitchBot: a nuvem não informa o horário da medição, então vale o horário em que o sistema leu (a cada 2 min) e só se grava quando o valor muda — valor parado nunca é “renovado”.</span>
           </div>
           <div>
             <CalcChip /> <span className="small dim">calculado a partir das leituras: médias, diferenças, DPV, ponto de orvalho, extremos.</span>
@@ -382,6 +409,56 @@ function CollectorCard({ col, nowMs, ingestConfigured }: { col: CollectorStatusD
           {col.lastRejected > 0 && <Notice kind="warn">No último envio, {col.lastRejected} leitura(s) foram recusadas por horário inválido (relógio do coletor errado ou leitura antiga demais).</Notice>}
         </>
       )}
+    </section>
+  );
+}
+
+function SwitchbotCard({ sb, nowMs, busy, hasAdmin, onPoll }: { sb: SwitchbotStatusDto; nowMs: number; busy: string | null; hasAdmin: boolean; onPoll: () => void }) {
+  const usage = sb.callsToday / sb.dailyLimit;
+  return (
+    <section className="card">
+      <div className="card__head">
+        <div>
+          <h2 className="card__title">Sensores: SwitchBot</h2>
+          <div className="card__sub">Outdoor Meter (IP65) → Hub Mini → nuvem SwitchBot → este painel, pela API oficial a cada 2 min. Sem computador no local.</div>
+        </div>
+        <Chip kind={!sb.configured ? 'warn' : sb.lastError ? 'bad' : sb.lastSuccessAt ? 'ok' : 'warn'}>{!sb.configured ? 'Não configurado' : sb.lastError ? 'Com falha' : sb.lastSuccessAt ? 'Funcionando' : 'Aguardando'}</Chip>
+      </div>
+      {!sb.configured && (
+        <Notice kind="warn">
+          Falta a credencial SwitchBot no servidor (<code>SWITCHBOT_TOKEN</code> e <code>SWITCHBOT_SECRET</code>). Veja o passo a passo abaixo.
+        </Notice>
+      )}
+      {sb.configured && (
+        <div className="kpi-grid" style={{ marginBottom: '0.8rem' }}>
+          <div>
+            <div className="tiny mute">Última leitura bem-sucedida</div>
+            <b>{sb.lastSuccessAt ? formatAge(nowMs - Date.parse(sb.lastSuccessAt)) : '—'}</b>
+            <div className="tiny dim">{sb.lastSuccessAt ? formatDateTime(Date.parse(sb.lastSuccessAt)) : 'ainda não leu'}</div>
+          </div>
+          <div>
+            <div className="tiny mute">Chamadas à API hoje</div>
+            <b>
+              {sb.callsToday.toLocaleString('pt-BR')} / {sb.dailyLimit.toLocaleString('pt-BR')}
+            </b>
+            <div className="tiny dim">{fmtNum(usage * 100, 0)} % do limite diário gratuito</div>
+          </div>
+        </div>
+      )}
+      {sb.lastError && (
+        <Notice kind="bad">
+          <strong>
+            Última falha ({formatDateTime(Date.parse(sb.lastError.at))}, {sb.consecutiveFailures}× seguidas):
+          </strong>{' '}
+          {sb.lastError.message}
+        </Notice>
+      )}
+      <div className="toolbar" style={{ marginTop: '0.8rem' }}>
+        <button type="button" className="btn btn--primary" disabled={!sb.configured || !!busy || !hasAdmin} onClick={onPoll}>
+          {busy === 'sbpoll' ? 'Lendo…' : '↻ Ler agora'}
+        </button>
+        {!hasAdmin && <span className="small" style={{ color: 'var(--amber)' }}>Para ler agora, informe o token de administração em Configurações.</span>}
+      </div>
     </section>
   );
 }

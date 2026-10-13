@@ -1,7 +1,7 @@
 # Contrato de leituras
 
-Há duas rotas de entrada, com o mesmo token (`INGEST_TOKEN`) e a **mesma gravação idempotente** (chave sensor + instante da medição):
-- **`POST /api/v1/ingest/zigbee`:** usada pelo **coletor local**, a origem principal dos sensores. Identifica os sensores pelo endereço IEEE do Zigbee.
+A origem principal dos sensores é a **API SwitchBot**, lida pelo próprio servidor a cada 2 min (sem rota de entrada). As rotas abaixo servem a origens alternativas e usam o mesmo token (`INGEST_TOKEN`) e a **mesma gravação idempotente** (chave sensor + instante da medição):
+- **`POST /api/v1/ingest/zigbee`:** coletor local Zigbee2MQTT (alternativa com computador, não usada no plano atual). Identifica os sensores pelo endereço IEEE do Zigbee.
 - **`POST /api/v1/ingest/readings`:** genérica, para outras origens (ESP32, scripts). Identifica os sensores por S1, S2, S3.
 
 ## Coletor Zigbee — `POST /api/v1/ingest/zigbee`

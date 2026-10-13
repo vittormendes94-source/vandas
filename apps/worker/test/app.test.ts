@@ -10,6 +10,9 @@ import { applyRetention, getConfig, persistReadings, saveConfig } from '../src/r
 import { createTestDb } from './d1-shim';
 // @ts-expect-error módulo JS de teste
 import { climateThing, createEwelinkMock, switchThing } from './ewelink-mock.mjs';
+// @ts-expect-error módulo JS de teste
+import { createSwitchbotMock, hubMini, outdoorMeter } from './switchbot-mock.mjs';
+import { pollSwitchbot, switchbotSign } from '../src/switchbot';
 
 const ADMIN = 'admin-token-de-teste-123';
 const INGEST = 'ingest-token-de-teste-456';
@@ -453,5 +456,117 @@ describe('coletor Zigbee2MQTT (origem principal dos sensores)', () => {
 
   it('sem nenhum contato do coletor: status nulo', async () => {
     expect((await live()).integration.collector).toBeNull();
+  });
+});
+
+describe('SwitchBot (origem dos sensores Outdoor Meter, sem computador no local)', () => {
+  const SB_TOKEN = 'sb-token-de-teste';
+  const SB_SECRET = 'sb-segredo-de-teste';
+  const sbEnv = () => ({ ...env, SWITCHBOT_TOKEN: SB_TOKEN, SWITCHBOT_SECRET: SB_SECRET, SWITCHBOT_API_BASE_OVERRIDE: 'https://mock.switchbot.test' }) as Env;
+  const setup = () => {
+    const mock = createSwitchbotMock({ token: SB_TOKEN, secret: SB_SECRET });
+    vi.stubGlobal('fetch', (input: RequestInfo, init?: RequestInit) => mock.fetch(input, init));
+    mock.state.devices = [hubMini(), outdoorMeter('C1A1A1A1A101', 'Orquídeas 1'), outdoorMeter('C1A1A1A1A102', 'Orquídeas 2'), outdoorMeter('C1A1A1A1A103', 'Orquídeas 3')];
+    mock.state.status.set('C1A1A1A1A101', { deviceId: 'C1A1A1A1A101', deviceType: 'WoIOSensor', temperature: 26.4, humidity: 71, battery: 100 });
+    mock.state.status.set('C1A1A1A1A102', { deviceId: 'C1A1A1A1A102', deviceType: 'WoIOSensor', temperature: 25.1, humidity: 75, battery: 60 });
+    mock.state.status.set('C1A1A1A1A103', { deviceId: 'C1A1A1A1A103', deviceType: 'WoIOSensor', temperature: 24.0, humidity: 80, battery: 100 });
+    return mock;
+  };
+  const linkAll = async () => {
+    const c = await getConfig(env.DB);
+    c.sensors.forEach((s, i) => (s.externalId = `C1A1A1A1A10${i + 1}`));
+    await saveConfig(env.DB, c, Date.now());
+  };
+
+  it('assinatura igual à do exemplo oficial (Base64 de HMAC-SHA256 de token+t+nonce)', async () => {
+    const { createHmac } = await import('node:crypto');
+    const expected = createHmac('sha256', 'segredo').update('tok' + '1661927531000' + 'abc-123').digest('base64');
+    expect(await switchbotSign('tok', 'segredo', '1661927531000', 'abc-123')).toBe(expected);
+  });
+
+  it('sem token/segredo no servidor: não tenta ler', async () => {
+    expect(await pollSwitchbot(env, env.DB, defaultConfig(), Date.now())).toEqual({ ran: false, reason: 'not_configured' });
+    expect((await live()).integration.switchbot.configured).toBe(false);
+  });
+
+  it('lista os sensores para vincular (hub não é sensor) e só lê o status dos vinculados', async () => {
+    const mock = setup();
+    const e = sbEnv();
+    const r = await pollSwitchbot(e, e.DB, await getConfig(e.DB), Date.now(), { force: true });
+    expect(r).toMatchObject({ ran: true, devices: 4, inserted: 0 });
+    expect(mock.state.calls).toEqual(['GET /v1.1/devices']);
+    const devs = (await (await call('/api/devices', undefined, e)).json()) as { devices: ProviderDeviceDto[] };
+    expect(devs.devices.filter((d) => d.provider === 'switchbot').map((d) => `${d.deviceId}:${d.kind}:${d.model}`).sort()).toEqual([
+      'C1A1A1A1A101:climate:Outdoor Meter (IP65)',
+      'C1A1A1A1A102:climate:Outdoor Meter (IP65)',
+      'C1A1A1A1A103:climate:Outdoor Meter (IP65)',
+      'HUB000000001:unsupported:Hub Mini',
+    ]);
+  });
+
+  it('vinculados: grava a leitura; valor repetido NÃO vira leitura nova (a API não informa o horário da medição)', async () => {
+    const mock = setup();
+    const e = sbEnv();
+    await pollSwitchbot(e, e.DB, await getConfig(e.DB), Date.now(), { force: true });
+    await linkAll();
+    const t1 = Date.now();
+    expect(await pollSwitchbot(e, e.DB, await getConfig(e.DB), t1)).toMatchObject({ ran: true, inserted: 3 });
+    expect(mock.state.calls.filter((c: string) => c.endsWith('/status'))).toHaveLength(3);
+    let l = await live(e);
+    expect(l.latest.s1).toMatchObject({ temperatureC: 26.4, humidityPct: 71, batteryPct: 100, timeBasis: 'received', source: 'switchbot', measuredAt: iso(t1) });
+    expect(l.links.s1).toMatchObject({ provider: 'switchbot', deviceName: 'Orquídeas 1' });
+
+    // 2 min depois, nuvem devolve os mesmos valores (sensor parado ou ambiente estável): nada é renovado.
+    expect(await pollSwitchbot(e, e.DB, await getConfig(e.DB), t1 + 2 * MIN)).toMatchObject({ inserted: 0 });
+    // S2 mudou: só S2 ganha leitura nova.
+    mock.state.status.get('C1A1A1A1A102').temperature = 25.4;
+    expect(await pollSwitchbot(e, e.DB, await getConfig(e.DB), t1 + 4 * MIN)).toMatchObject({ inserted: 1 });
+    l = await live(e);
+    expect(l.latest.s1!.measuredAt).toBe(iso(t1));
+    expect(l.latest.s2).toMatchObject({ temperatureC: 25.4, measuredAt: iso(t1 + 4 * MIN) });
+    expect(l.integration.switchbot).toMatchObject({ configured: true, lastError: null, consecutiveFailures: 0 });
+    expect(l.integration.switchbot.callsToday).toBeGreaterThan(0);
+  });
+
+  it('sensor ou hub offline: não grava nada daquele sensor, os outros seguem, e a falha aparece', async () => {
+    const mock = setup();
+    const e = sbEnv();
+    await pollSwitchbot(e, e.DB, await getConfig(e.DB), Date.now(), { force: true });
+    await linkAll();
+    mock.state.status.set('C1A1A1A1A102', { code: 161 });
+    mock.state.status.set('C1A1A1A1A103', { code: 171 });
+    const r = await pollSwitchbot(e, e.DB, await getConfig(e.DB), Date.now());
+    expect(r).toMatchObject({ ran: true, inserted: 1, reason: 'device' });
+    const l = await live(e);
+    expect(l.latest.s2).toBeNull();
+    expect(l.integration.switchbot.lastError!.message).toMatch(/161[\s\S]*Hub SwitchBot offline/);
+    const devs = (await (await call('/api/devices', undefined, e)).json()) as { devices: ProviderDeviceDto[] };
+    expect(devs.devices.find((d) => d.deviceId === 'C1A1A1A1A102')!.online).toBe(false);
+  });
+
+  it('token/segredo errados: falha visível, sem gravar', async () => {
+    const mock = setup();
+    mock.state.unauthorized = true;
+    const e = sbEnv();
+    expect(await pollSwitchbot(e, e.DB, await getConfig(e.DB), Date.now(), { force: true })).toEqual({ ran: true, reason: 'auth' });
+    expect((await live(e)).integration.switchbot.lastError).toMatchObject({ code: 'auth' });
+  });
+
+  it('valores impossíveis são recusados', async () => {
+    const mock = setup();
+    const e = sbEnv();
+    await pollSwitchbot(e, e.DB, await getConfig(e.DB), Date.now(), { force: true });
+    await linkAll();
+    mock.state.status.get('C1A1A1A1A101').humidity = 140;
+    expect(await pollSwitchbot(e, e.DB, await getConfig(e.DB), Date.now())).toMatchObject({ inserted: 2, reason: 'device' });
+  });
+
+  it('a tarefa agendada lê SwitchBot e eWeLink de forma independente', async () => {
+    const mock = setup();
+    const e = sbEnv();
+    await linkAll();
+    await runScheduled(e, Date.now());
+    expect(mock.state.calls).toContain('GET /v1.1/devices');
+    expect((await live(e)).integration.switchbot.lastSuccessAt).not.toBeNull();
   });
 });

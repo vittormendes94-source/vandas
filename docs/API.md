@@ -6,9 +6,10 @@ Base: mesma origem da interface. JSON. Datas em ISO 8601 UTC (`...Z`) nas respos
 |---|---|---|---|
 | GET | `/api/health` | aberto | Saúde |
 | GET | `/api/meta` | aberto | Flags não sensíveis (se há token de visualização/edição/ingestão configurados) |
-| GET | `/api/live` | visualização | Configuração, última leitura de cada sensor (pode estar vencida), vínculo de cada sensor, estado atual da bomba, saúde do coletor e do eWeLink |
+| GET | `/api/live` | visualização | Configuração, última leitura de cada sensor (pode estar vencida), vínculo de cada sensor, estado atual da bomba, saúde das integrações (SwitchBot, eWeLink, coletor) |
 | GET | `/api/history?from&to&res&detail` | visualização | Histórico (ver abaixo) |
-| GET | `/api/devices` | visualização | Aparelhos encontrados pelo coletor Zigbee e pelo eWeLink (retrato, não histórico) |
+| GET | `/api/devices` | visualização | Aparelhos encontrados nas contas SwitchBot e eWeLink (e no coletor Zigbee, se usado); retrato, não histórico |
+| POST | `/api/switchbot/poll` | **admin** | Lê os sensores SwitchBot agora e relê a lista de aparelhos |
 | GET | `/api/config` | visualização | Configuração atual |
 | PUT | `/api/config` | **admin** | Grava configuração (controle de revisão) |
 | POST | `/api/ewelink/authorize` | **admin** | Devolve o endereço da página oficial de login do eWeLink |

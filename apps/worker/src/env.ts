@@ -22,6 +22,11 @@ export interface Env {
   EWELINK_REDIRECT_URL?: string;
   /** Opcional (AAAA-MM-DD): data em que a credencial pessoal (válida 1 ano) vence, para aviso antecipado. */
   EWELINK_APP_EXPIRES_AT?: string;
+  /** Credencial da API SwitchBot (app SwitchBot → Perfil → Preferências → Sobre → toque 10× na versão → Opções de desenvolvedor). */
+  SWITCHBOT_TOKEN?: string;
+  SWITCHBOT_SECRET?: string;
+  /** SOMENTE PARA TESTES AUTOMATIZADOS: aponta para um servidor local que imita a API. Nunca defina em produção. */
+  SWITCHBOT_API_BASE_OVERRIDE?: string;
   /** SOMENTE PARA TESTES AUTOMATIZADOS: aponta para um servidor local que imita a API. Nunca defina em produção. */
   EWELINK_API_BASE_OVERRIDE?: string;
   EWELINK_OAUTH_URL_OVERRIDE?: string;

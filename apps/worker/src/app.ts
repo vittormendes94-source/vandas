@@ -20,6 +20,7 @@ import {
   saveConfig,
 } from './repo';
 import { collectorStatusDto, ingestZigbee } from './zigbee';
+import { pollSwitchbot, switchbotStatusDto } from './switchbot';
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -66,11 +67,12 @@ app.get('/api/meta', (c) => c.json({ viewProtected: !!c.env.VIEW_TOKEN, writeAut
 app.get('/api/live', requireView, async (c) => {
   const now = Date.now();
   const config = await getConfig(c.env.DB);
-  const [latest, devices, ewelink, collector] = await Promise.all([
+  const [latest, devices, ewelink, collector, switchbot] = await Promise.all([
     latestReadings(c.env.DB, config.sensors.map((s) => s.id)),
     listAllProviderDevices(c.env.DB),
     statusDto(c.env, c.env.DB, now),
     collectorStatusDto(c.env.DB),
+    switchbotStatusDto(c.env, c.env.DB, now),
   ]);
   const byId = new Map(devices.map((d) => [d.deviceId, d]));
   const ewelinkById = new Map(devices.filter((d) => d.provider === PROVIDER).map((d) => [d.deviceId, d]));
@@ -88,7 +90,7 @@ app.get('/api/live', requireView, async (c) => {
     latest: Object.fromEntries([...latest].map(([id, r]) => [id, r ? readingToDto(r) : null])),
     links,
     pump: { comm: pump.comm, state: pump.state, seenAt: isoOrNull(pump.seenAt), deviceName: pd?.name ?? null },
-    integration: { ewelink, collector, writeAuthConfigured: !!c.env.ADMIN_TOKEN, ingestAuthConfigured: !!c.env.INGEST_TOKEN },
+    integration: { switchbot, ewelink, collector, writeAuthConfigured: !!c.env.ADMIN_TOKEN, ingestAuthConfigured: !!c.env.INGEST_TOKEN },
   };
   return c.json(body);
 });
@@ -171,6 +173,9 @@ app.get('/api/ewelink/callback', async (c) => {
     return c.redirect(`/#/dados?ewelink=erro&motivo=${encodeURIComponent(code)}`, 302);
   }
 });
+
+/** Lê os sensores SwitchBot agora (além da leitura automática a cada 2 min); também relê a lista de aparelhos. */
+app.post('/api/switchbot/poll', requireAdmin, async (c) => c.json(await pollSwitchbot(c.env, c.env.DB, await getConfig(c.env.DB), Date.now(), { force: true })));
 
 /** Lê o eWeLink agora (além da leitura automática). */
 app.post('/api/ewelink/poll', requireAdmin, async (c) => c.json(await pollEwelink(c.env, c.env.DB, await getConfig(c.env.DB), Date.now(), { force: true })));

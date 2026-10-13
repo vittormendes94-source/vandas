@@ -27,11 +27,12 @@ No repositório: **Settings → Secrets and variables → Actions → New reposi
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID do passo A1.3 | Sim |
 | `ADMIN_TOKEN` | Senha longa sua, com 24+ caracteres. Serve para editar a configuração e conectar o eWeLink | Sim |
 | `VIEW_TOKEN` | Outra senha longa, com 24+ caracteres. É a senha de "só ver", usada na TV | Sim |
-| `INGEST_TOKEN` | Terceira senha longa, com 24+ caracteres. O coletor do orquidário usa para enviar as leituras; o instalador pede este valor | Sim |
+| `SWITCHBOT_TOKEN` | Token do app SwitchBot (Perfil → Preferências → Sobre → toque 10× na versão → Opções de desenvolvedor) | Quando o kit chegar |
+| `SWITCHBOT_SECRET` | Secret do mesmo lugar | Quando o kit chegar |
 | `EWELINK_APP_ID` | APPID do app em dev.ewelink.cc | Quando o eWeLink aprovar |
 | `EWELINK_APP_SECRET` | APP SECRET do mesmo app | Quando o eWeLink aprovar |
 
-**Gerar senhas longas:** use um gerador de senhas, como o do celular ou do gerenciador de senhas, com 32 caracteres e só letras e números. Guarde as três no gerenciador de senhas.
+**Gerar senhas longas:** use um gerador de senhas, como o do celular ou do gerenciador de senhas, com 32 caracteres e só letras e números. Guarde as duas no gerenciador de senhas.
 
 **Opcional:** na aba **Variables**, crie `EWELINK_APP_EXPIRES_AT` com a data `AAAA-MM-DD` de vencimento da credencial anual. O painel avisa 30 dias antes.
 
@@ -45,11 +46,11 @@ No repositório: **Settings → Secrets and variables → Actions → New reposi
    - **cria o banco D1** na primeira vez e aplica as migrações;
    - publica o sistema com os segredos.
 4. No resumo da execução aparecem:
-   - o **endereço do painel**, que o instalador do coletor pede;
+   - o **endereço do painel**;
    - o **endereço da TV**;
    - o **endereço de retorno** a cadastrar no app eWeLink.
 
-Os segredos do eWeLink servem só para a bomba e podem vir depois. Quando receber o APPID e o APP SECRET, cadastre os dois segredos e rode **Run workflow** de novo. Os dados não se perdem: o banco é reaproveitado.
+Os segredos SwitchBot (sensores) e eWeLink (bomba) podem vir depois. Quando tiver cada par, cadastre os segredos e rode **Run workflow** de novo. Os dados não se perdem: o banco é reaproveitado.
 
 ## B. Manual, no seu computador
 
@@ -64,7 +65,8 @@ npx wrangler d1 create orquidario        # cole o database_id em wrangler.toml (
 npm run db:migrate:remote
 npx wrangler secret put ADMIN_TOKEN
 npx wrangler secret put VIEW_TOKEN
-npx wrangler secret put INGEST_TOKEN
+npx wrangler secret put SWITCHBOT_TOKEN
+npx wrangler secret put SWITCHBOT_SECRET
 npx wrangler secret put EWELINK_APP_ID
 npx wrangler secret put EWELINK_APP_SECRET
 cd ../.. && npm run build && cd apps/worker && npx wrangler deploy
@@ -75,7 +77,7 @@ cd ../.. && npm run build && cd apps/worker && npx wrangler deploy
 ## Depois de publicar
 1. **Token de administração:** abra o endereço e informe o `ADMIN_TOKEN` em Configurações → "Acesso para editar".
 2. **Retorno no app eWeLink:** cadastre `https://<seu-endereço>/api/ewelink/callback`. A tela "Dados e integração" mostra o valor exato. O sistema calcula o retorno sozinho; não há variável para configurar.
-3. **Sensores:** rode o instalador do coletor no computador do orquidário ([INSTALACAO.md](INSTALACAO.md)). Em Configurações, vincule S1–S3.
+3. **Sensores:** em "Dados e integração → Sensores: SwitchBot", clique em "Ler agora". Em Configurações, vincule S1–S3 ([INSTALACAO.md](INSTALACAO.md)).
 4. **Bomba:** em "Dados e integração", conecte a conta eWeLink. Em Configurações, escolha o Sonoff da bomba.
 5. **TV:** abra `https://…/?tv=1&k=<VIEW_TOKEN>`, salve nos favoritos e use a tela cheia. O token da TV só permite ver.
 6. **Cotas:** no primeiro dia, confira no painel da Cloudflare o uso de requisições e de linhas do D1 (ver [CUSTOS-E-COTAS.md](CUSTOS-E-COTAS.md)).

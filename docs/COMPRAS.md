@@ -1,97 +1,68 @@
 # Lista de compras
 
-Revisada em 13/10/2026. **Preços vistos em resultados de busca; as páginas das lojas não puderam ser abertas para conferência. Confira preço, estoque e vendedor antes de comprar.** Lojas: somente **AliExpress, Mercado Livre, Amazon e Shopee**.
+Revisada em 13/10/2026. **Preços vistos em resultados de busca; as páginas das lojas não puderam ser abertas para conferência. Confira preço, estoque e vendedor antes de comprar.** Lojas preferidas: **AliExpress, Mercado Livre, Amazon e Shopee**.
 
-## Decisão: leitura dos sensores pelo caminho garantido
+## Decisão: sensores SwitchBot (online, sem computador, suporte documentado)
 
-Os sensores são lidos **direto pelo rádio Zigbee**, num computador no local, com o **Zigbee2MQTT** (programa livre e gratuito, o padrão de mercado para Zigbee). Não há dependência de permissão de nuvem de terceiros.
+Requisitos: **tudo online**, **sem computador ligado** no local e **sem depender de liberação incerta**.
 
 | Ponto | Situação | Prova |
 |---|---|---|
-| SNZB-02WD suportado pelo Zigbee2MQTT | ✅ Garantido | Código oficial do Zigbee2MQTT (`zigbee-herdsman-converters`, `sonoff.ts`): modelo `SNZB-02WD`, "Waterproof (IP65) temperature and humidity sensor with screen", com temperatura, umidade e bateria |
-| Frequência de leitura | ✅ Definida | Mesmo arquivo: envia a cada variação de 0,2 °C ou 1 % UR e, **no máximo, a cada 1 hora** |
-| Adaptador SONOFF ZBDongle-P / ZBDongle-E | ✅ Garantido | Documentação oficial do Zigbee2MQTT: ambos na lista de adaptadores **recomendados** (zStack e EmberZNet) |
-| Configuração do Zigbee2MQTT gerada pelo instalador | ✅ Testada | Validada pela versão 2.14.2 real do Zigbee2MQTT (formato 5, adaptador ember) |
-| Coletor → painel, com fila contra queda de internet | ✅ Testado | Mosquitto e Zigbee2MQTT reais em contêiner; mensagens no formato do Zigbee2MQTT; internet derrubada e restabelecida sem perda |
-| Bomba (Sonoff Wi-Fi) pelo eWeLink | ⚠️ Testar antes, sem custo | O Sonoff da bomba já existe: o teste (dev.ewelink.cc) não exige compra. Se não funcionar, só a bomba fica de fora; os sensores não dependem disso |
+| A API lê o **Outdoor Meter** (temperatura, umidade, bateria) | ✅ Garantido | Documentação oficial da API SwitchBot (github.com/OpenWonderLabs/SwitchBotAPI): o Outdoor Meter (`WoIOSensor`) consta com "Status ✓" e "Webhook ✓", e os campos `temperature`, `humidity` e `battery` estão listados |
+| Acesso à API | ✅ Gratuito | Token e segredo gerados no próprio app. Limite de 10 000 chamadas/dia; o sistema usa ~2 200 |
+| Computador no local | ✅ Não precisa | Sensor → **Hub Mini** (na tomada, Wi-Fi) → nuvem SwitchBot → painel |
+| À prova d'água | ✅ IP65 | Ficha oficial do Outdoor Meter |
+| Integração no sistema | ✅ Pronta e testada | Testes com servidor que reproduz a API oficial e confere a assinatura pelo exemplo oficial |
+| Frequência | ⚠️ Limitação conhecida | A SwitchBot atualiza a nuvem a cada **2 a 30 min**, conforme a variação (artigo de suporte da SwitchBot). O painel lê a cada 2 min |
+| Bomba (Sonoff) | ✅ eWeLink | O app eWeLink já mostra ligada/desligada; o sistema lê esse mesmo estado pela API oficial do eWeLink |
 
-A ponte ZBBridge-P **não é mais necessária**: o adaptador USB faz o papel dela.
+**O que não compramos mais:** SNZB-02WD, ponte ZBBridge-P, adaptador ZBDongle e computador. A API gratuita do eWeLink **não garante** acesso ao SNZB-02WD, e o caminho garantido para ele (Zigbee2MQTT) exige computador ligado.
 
 ## O que comprar
 
 | # | Item | Qtd | Estimativa |
 |---|---|---|---|
-| 1 | Sensor **SONOFF SNZB-02WD** | 3 | R$ 115–160 cada (importado) |
-| 2 | Adaptador **SONOFF Zigbee 3.0 USB Dongle Plus**, modelo **ZBDongle-E** ou **ZBDongle-P** | 1 | R$ 190–280 |
-| 3 | **Cabo extensor USB 2.0, macho-fêmea, 1 m** | 1 | R$ 20–40 |
-| 4 | **Computador** que fica ligado no local (veja abaixo) | 1 | R$ 0 a R$ 1.430 |
+| 1 | **SwitchBot Outdoor Meter** (termo-higrômetro interno/externo IP65, modelo **W3400010**) | 3 | ~US$ 15–20 cada |
+| 2 | **SwitchBot Hub Mini** (o "Hub Mini Matter Enabled" também serve) ou **Hub 2** | 1 | ~US$ 35 |
+| — | Carregador USB de celular (5 V / 1 A) para o hub | 1 | Use um que você já tem |
 
-### Computador: uma das duas opções
+**Mais simples:** o **"Outdoor Meter Kit"** oficial (3 Outdoor Meter + 1 Hub Mini), visto a **US$ 59,99** na loja oficial dos EUA.
 
-| Opção | Quando escolher | Custo |
-|---|---|---|
-| **A. Notebook ou PC que você já tem**, de 64 bits, com 2 GB de RAM ou mais | Se tiver um parado. Notebook é o melhor: a **bateria segura quedas de energia** | R$ 0 |
-| **B. Kit Raspberry Pi 4 Model B 4 GB**, com **fonte oficial 5 V/3 A USB-C**, cartão **32 GB "High Endurance"** e case | Se não tiver computador disponível. É a plataforma de referência do Zigbee2MQTT | R$ 1.100–1.430 (kits no Mercado Livre) |
+Cada Outdoor Meter mede **temperatura e umidade**: 3 aparelhos = 3 pontos de temperatura + 3 de umidade.
 
-O computador precisa de **Wi-Fi ou cabo de rede** e deve ficar **perto do orquidário**, em lugar coberto. O alcance do Zigbee chega a dezenas de metros, mas paredes reduzem.
+## Especificação e checklist do anúncio
 
-## Especificação exata e checklist do anúncio
+### SwitchBot Outdoor Meter (×3)
 
-### Sensor: SONOFF SNZB-02WD (×3)
+- Nome: **"SwitchBot Indoor/Outdoor Thermo-Hygrometer"** ou **"Outdoor Meter"**, modelo **W3400010**.
+- **IP65**, sensor suíço Sensirion, Bluetooth, 2 pilhas AAA.
+- Não confundir com o **Meter**, o **Meter Plus** ou o **Meter Pro**: funcionam com o sistema, mas **não são à prova d'água**.
 
-Ficha oficial: https://help.sonoff.tech/docs/snzb-02wd
+### Hub (×1)
 
-- O título diz **SNZB-02WD**. Não serve 02, 02D, 02P nem 02LD.
-- **IP65**, tela LCD de 2,2", **Zigbee 3.0**, pilha CR2477 (vem instalada).
-- Faixa de −20 a 60 °C e 0–100 % UR; precisão de ±0,2 °C e ±2 % UR.
-- Desconfie de preço abaixo de US$ 15 e de anúncio que fale em "Tuya" ou "Wi-Fi".
+- **Hub Mini** (W0202200), **Hub Mini Matter** ou **Hub 2**. Qualquer um serve.
+- Wi-Fi **2,4 GHz**. **Uso interno:** fica coberto, numa tomada perto do orquidário.
+- **Alcance do Bluetooth:** até 120 m em campo aberto, segundo o fabricante. Paredes reduzem. Deixe o hub a poucos metros do orquidário, de preferência com visão direta.
 
-### Adaptador: SONOFF Zigbee 3.0 USB Dongle Plus (×1)
+## Onde comprar
 
-- Modelo **ZBDongle-E** (também chamado "Dongle Plus V2", chip EFR32MG21) **ou ZBDongle-P** (chip CC2652P). Os dois servem e vêm prontos para uso.
-- Marca **SONOFF/ITEAD**, com antena externa.
-- Não compre: adaptadores genéricos sem marca, "Tuya Zigbee gateway" (Wi-Fi) e a ponte ZBBridge.
-
-### Cabo extensor USB 2.0 (×1)
-
-Afasta o adaptador do computador. A própria documentação do Zigbee2MQTT recomenda, para evitar interferência das portas USB 3.
-
-## Onde comprar (só as 4 lojas)
-
-### Sensor SNZB-02WD
+A busca **não encontrou** o Outdoor Meter à venda em lojas brasileiras. Confira nas 4 lojas; se não houver, a compra é importada.
 
 | Loja | Link | Observação |
 |---|---|---|
-| **AliExpress, loja "SONOFF Official Store"** | https://pt.aliexpress.com/w/wholesale-snzb-02wd.html | **Primeira opção.** US$ 20–39. Remessa Conforme: o imposto já vem no checkout |
-| Mercado Livre | https://lista.mercadolivre.com.br/snzb-02wd | Nenhum anúncio encontrado na busca; confira |
-| Amazon Brasil | https://www.amazon.com.br/s?k=SNZB-02WD | Nenhum anúncio encontrado (lá fora é o ASIN B0FCG88WW6) |
-| Shopee | https://shopee.com.br/search?keyword=snzb-02wd | Nenhum anúncio encontrado; confira |
+| AliExpress | https://pt.aliexpress.com/w/wholesale-switchbot-outdoor-meter.html | Procure a loja oficial "SwitchBot Official Store" |
+| Amazon Brasil | https://www.amazon.com.br/s?k=switchbot+outdoor+meter | Não confirmado |
+| Mercado Livre | https://lista.mercadolivre.com.br/switchbot | Há anúncios SwitchBot importados (envio dos EUA); confira se é o Outdoor Meter (W3400010) |
+| Shopee | https://shopee.com.br/search?keyword=switchbot%20outdoor%20meter | Não confirmado |
+| Loja oficial SwitchBot (EUA) | https://us.switch-bot.com/products/outdoor-meter-kit | **Kit 3 sensores + Hub Mini: US$ 59,99.** Confira se envia para o Brasil |
+| Amazon EUA | https://www.amazon.com/SwitchBot-Hygrometer-Thermometer-Bluetooth-Refrigerator/dp/B0BVLYPYT1 | Outdoor Meter avulso. Confira o envio para o Brasil |
 
-### Adaptador ZBDongle-E / ZBDongle-P
-
-| Loja | Link | Preço visto |
-|---|---|---|
-| **Mercado Livre** | https://lista.mercadolivre.com.br/sonoff-dongle-zigbee | R$ 190–280 (ZBDongle-E e ZBDongle-P) |
-| Amazon Brasil | https://www.amazon.com.br/s?k=sonoff+zigbee+usb+dongle+plus | Confira |
-| AliExpress | https://pt.aliexpress.com/w/wholesale-sonoff-zbdongle.html | Na SONOFF Official Store; pode ir no mesmo pedido dos sensores |
-| Shopee | https://shopee.com.br/search?keyword=sonoff%20zbdongle | Confira o vendedor |
-
-### Raspberry Pi 4 (só se for a opção B)
-
-| Loja | Link | Preço visto |
-|---|---|---|
-| Mercado Livre | https://lista.mercadolivre.com.br/kit-raspberry-pi-4-4gb | Kits de R$ 1.090 a R$ 1.433 |
-| Amazon Brasil | https://www.amazon.com.br/Raspberry-Pi-Computer-Model-RAM/dp/B07TC2BK1X | Placa avulsa: R$ 778,73 (sem fonte nem cartão) |
-
-**Prefira o kit com fonte oficial.** Fonte fraca é a causa número 1 de problemas no Raspberry Pi.
+**Imposto de importação:** até onde sei, até US$ 50 paga-se 20 % + ICMS; acima disso, a alíquota é maior, com desconto fixo. Confira no checkout.
 
 ## Estimativa de gasto
 
-| Compra | Opção A (notebook que você tem) | Opção B (Raspberry Pi) |
-|---|---|---|
-| 3 × SNZB-02WD | R$ 345–480 | R$ 345–480 |
-| ZBDongle-E/P + cabo extensor | R$ 210–320 | R$ 210–320 |
-| Computador | R$ 0 | R$ 1.100–1.430 |
-| **Total** | **~R$ 555–800** | **~R$ 1.655–2.230** |
-| Mensal (sistema na nuvem) | R$ 0 | R$ 0 |
-| Mensal (energia do computador) | ~R$ 5–10 (notebook) | ~R$ 3 |
+| Compra | Estimativa |
+|---|---|
+| Kit 3 Outdoor Meter + Hub Mini (US$ 60 + frete + impostos de importação, câmbio R$ 5,50) | **~R$ 500–750** |
+| Mensal (sistema na nuvem) | R$ 0 |
+| Mensal (energia do hub + pilhas AAA) | ~R$ 2 |

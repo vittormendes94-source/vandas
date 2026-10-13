@@ -6,6 +6,7 @@
 
 > **Cloudflare:** as páginas oficiais (`developers.cloudflare.com`) estavam bloqueadas no ambiente de desenvolvimento. Os valores vêm de **resumos de busca** delas. **Confirme no painel antes de depender deles.**
 > **eWeLink:** valores lidos na **documentação oficial** (repositório CoolKit-Technologies/eWeLink-API, 30/09/2026).
+> **SwitchBot:** limite de 10 000 chamadas/dia lido na **documentação oficial** (repositório OpenWonderLabs/SwitchBotAPI, 13/10/2026).
 
 | Recurso (plano gratuito) | Valor obtido | Fonte | Uso deste projeto |
 |---|---|---|---|
@@ -22,7 +23,7 @@ Limites diários reiniciam às 00:00 UTC (informação da mesma fonte). O plano 
 
 ## Dimensionamento
 
-Premissas: 3 sensores pelo coletor local, cada um informando no pior caso a cada 1 min (o SNZB-02WD informa a cada 0,2 °C / 1 % de variação, no mínimo de hora em hora); 1 Sonoff (bomba) lido do eWeLink a cada 2 min (720 por dia); 5 telas abertas 24 h atualizando a cada 60 s.
+Premissas: 3 sensores SwitchBot lidos a cada 2 min (720 rodadas por dia × 3 consultas de status); 1 Sonoff (bomba) lido do eWeLink a cada 2 min (720 por dia); 5 telas abertas 24 h atualizando a cada 60 s.
 
 | Item | Conta | Resultado | % da cota |
 |---|---|---|---|
@@ -30,8 +31,8 @@ Premissas: 3 sensores pelo coletor local, cada um informando no pior caso a cada
 | Escritas D1: leituras novas | cada medição nova = 1 bruta + 1 agregado; se cada sensor mede a cada 5 min: 864 × 2 | ~1.700 linhas/dia | 1,7 % |
 | Escritas D1: retrato dos aparelhos e estado da integração | 720 × (1 exclusão + ~5 aparelhos + 1 estado) | ~5 mil linhas/dia | 5 % |
 | Leituras D1: telas | ≈ 15 linhas × 1.440 × 5 telas | ~110 mil/dia | 2 % |
-| Requisições Worker: coletor | sinal de vida 288/dia + envios (leituras agrupadas a cada 5 s; pior caso ~4,3 mil/dia) | até ~4,6 mil/dia | até 5 % |
-| Escritas D1: coletor | estado do coletor 1 linha por envio + lista de aparelhos (~5 linhas) a cada 5 min | até ~6 mil linhas/dia | até 6 % |
+| Chamadas SwitchBot | 720 × 3 status + lista de aparelhos a cada 6 h | ~2,2 mil/dia | 22 % de 10 mil/dia (acima de 8 mil, desacelera para 10 min) |
+| Escritas D1: SwitchBot | retrato dos aparelhos (~5 linhas) + estado, a cada 2 min; leituras só quando o valor muda | ~5 mil linhas/dia | 5 % |
 | Requisições Worker: telas e cron | 1.440 × 5 telas + 720 cron + histórico | ~9 mil/dia | 9 % |
 | Armazenamento | leituras brutas 45 dias + agregado 730 dias | ~20 MB | 0,4 % |
 

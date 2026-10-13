@@ -246,9 +246,13 @@ function SetupNotices(p: { integration: LiveResponse['integration']; unlinked: n
   const out: { kind: 'warn' | 'bad'; title: string; text: string; go: 'data' | 'config' }[] = [];
   const c = p.integration.collector;
   const eu = p.integration.ewelink;
-  if (!c) {
-    out.push({ kind: 'warn', title: 'Coletor local ainda não fez contato.', text: 'Os sensores chegam pelo computador do orquidário (Zigbee2MQTT). Instale-o e confira o token de envio.', go: 'data' });
-  } else {
+  const sb = p.integration.switchbot;
+  if (!sb.configured && !c) {
+    out.push({ kind: 'warn', title: 'Sensores ainda não configurados.', text: 'Cadastre a credencial SwitchBot (SWITCHBOT_TOKEN e SWITCHBOT_SECRET) e publique de novo.', go: 'data' });
+  } else if (sb.configured && sb.lastError) {
+    out.push({ kind: 'bad', title: `Sensores: falha na leitura da SwitchBot (${sb.consecutiveFailures}×):`, text: sb.lastError.message, go: 'data' });
+  }
+  if (c) {
     const age = p.nowMs - Date.parse(c.lastContactAt);
     if (age > COLLECTOR_STALE_MS)
       out.push({ kind: 'bad', title: `Coletor sem contato há ${formatAge(age)}.`, text: 'Se só a internet caiu, as leituras ficam guardadas nele e chegam quando ela voltar. Se faltou energia, confira o computador do orquidário.', go: 'data' });
@@ -258,7 +262,7 @@ function SetupNotices(p: { integration: LiveResponse['integration']; unlinked: n
     if (Math.abs(c.clockSkewMs) > COLLECTOR_CLOCK_WARN_MS)
       out.push({ kind: 'warn', title: 'Relógio do coletor errado.', text: `Diferença de ${formatAge(Math.abs(c.clockSkewMs))} em relação ao servidor; leituras com horário no futuro são recusadas. Confira a internet do computador do orquidário.`, go: 'data' });
   }
-  if (p.unlinked > 0) out.push({ kind: 'warn', title: `${p.unlinked} sensor(es) sem vínculo.`, text: 'Escolha qual sensor Zigbee corresponde a cada ponto do mapa.', go: 'config' });
+  if (p.unlinked > 0) out.push({ kind: 'warn', title: `${p.unlinked} sensor(es) sem vínculo.`, text: 'Escolha qual sensor corresponde a cada ponto do mapa.', go: 'config' });
   if (eu.connected && eu.lastError) out.push({ kind: 'bad', title: `Bomba: falha na leitura do eWeLink (${eu.consecutiveFailures}×):`, text: eu.lastError.message, go: 'data' });
   return (
     <>

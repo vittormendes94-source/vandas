@@ -73,7 +73,20 @@ export interface CollectorStatusDto {
   problem: string | null;
 }
 
+/** Sensores SwitchBot (API oficial na nuvem, lida a cada 2 min). */
+export interface SwitchbotStatusDto {
+  /** SWITCHBOT_TOKEN e SWITCHBOT_SECRET configurados no servidor. */
+  configured: boolean;
+  lastPollAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: { at: string; code: string; message: string } | null;
+  consecutiveFailures: number;
+  callsToday: number;
+  dailyLimit: number;
+}
+
 export interface IntegrationStatusDto {
+  switchbot: SwitchbotStatusDto;
   ewelink: EwelinkStatusDto;
   collector: CollectorStatusDto | null;
   writeAuthConfigured: boolean;

@@ -279,8 +279,12 @@ export function AlertsCard({ snapshot, alerts }: { snapshot: Snapshot; alerts: A
 function LinkLine({ link }: { link: SensorLinkDto | undefined }) {
   if (!link?.deviceId) return <div className="tiny" style={{ color: 'var(--amber)', marginTop: '0.3rem' }}>Não vinculado a um sensor (Configurações).</div>;
   const name = link.deviceName ?? link.deviceId;
+  if (link.provider === 'switchbot') {
+    if (link.online === false) return <div className="tiny" style={{ color: 'var(--red)', marginTop: '0.3rem' }}>SwitchBot: {name} · sem comunicação</div>;
+    return <div className="tiny mute" style={{ marginTop: '0.3rem' }}>SwitchBot: {name}</div>;
+  }
   if (link.provider === 'zigbee2mqtt') return <div className="tiny mute" style={{ marginTop: '0.3rem' }}>Zigbee: {name}</div>;
-  if (link.provider === null) return <div className="tiny" style={{ color: 'var(--amber)', marginTop: '0.3rem' }}>{name} · ainda não informado pelo coletor</div>;
+  if (link.provider === null) return <div className="tiny" style={{ color: 'var(--amber)', marginTop: '0.3rem' }}>{name} · não encontrado na última leitura</div>;
   if (link.online === true) return <div className="tiny mute" style={{ marginTop: '0.3rem' }}>eWeLink: {name} · online</div>;
   if (link.online === false) return <div className="tiny" style={{ color: 'var(--red)', marginTop: '0.3rem' }}>eWeLink: {name} · offline</div>;
   return <div className="tiny" style={{ color: 'var(--amber)', marginTop: '0.3rem' }}>eWeLink: {name} · não encontrado na última leitura</div>;
