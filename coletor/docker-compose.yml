@@ -1,0 +1,52 @@
+# Orquidário — coleta local dos sensores Zigbee. Gerado/usado pelo instalador (coletor/instalar.sh).
+# Variáveis vêm de <ORQ_DADOS>/compose.env: ORQ_DADOS (pasta de dados) e ZIGBEE_ADAPTADOR (porta do adaptador USB).
+# Tudo reinicia sozinho após queda de energia ou erro (restart: unless-stopped).
+name: orquidario
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "3"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    logging: *logging
+    volumes:
+      - ${ORQ_DADOS}/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    # Sem porta publicada: só os outros dois serviços (rede interna) falam com ele.
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:2
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      - mosquitto
+    ports:
+      - "8080:8080" # tela do Zigbee2MQTT (rede local), protegida por senha
+    environment:
+      - TZ=America/Sao_Paulo
+    volumes:
+      - ${ORQ_DADOS}/zigbee2mqtt:/app/data
+      - /run/udev:/run/udev:ro
+    devices:
+      - ${ZIGBEE_ADAPTADOR}:/dev/zigbee
+
+  coletor:
+    build: .
+    image: orquidario-coletor:local
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      - mosquitto
+    env_file:
+      - ${ORQ_DADOS}/coletor.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # só usado em testes locais
+    environment:
+      - MQTT_URL=mqtt://mosquitto:1883
+      - DATA_DIR=/data
+    volumes:
+      - ${ORQ_DADOS}/coletor:/data

@@ -1,0 +1,38 @@
+#:schema node_modules/wrangler/config-schema.json
+# Orquidário Inteligente — Cloudflare Worker + D1 + arquivos estáticos (Workers Static Assets).
+# Nada aqui publica por conta própria: a publicação só roda quando VOCÊ a disparar (ver docs/PUBLICACAO.md).
+
+name = "orquidario-inteligente"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# Front-end compilado (npm run build). Requisições de arquivos estáticos não passam pelo Worker
+# (em documentação consultada indiretamente constam como gratuitas e ilimitadas — confirmar no painel).
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "orquidario"
+# Placeholder: em desenvolvimento local o valor é ignorado. A publicação pelo GitHub (Actions → Publicar) cria o banco
+# e troca este valor sozinha; na publicação manual, rode `wrangler d1 create orquidario` e cole o database_id.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[vars]
+# A URL de retorno do login eWeLink é o próprio endereço do sistema + /api/ewelink/callback (calculada sozinha).
+# Para forçar outra, defina EWELINK_REDIRECT_URL aqui.
+# Opcional: data de vencimento (AAAA-MM-DD) da credencial pessoal eWeLink (válida 1 ano) para aviso antecipado.
+EWELINK_APP_EXPIRES_AT = ""
+
+# Tarefa agendada: lê o eWeLink a cada 2 min (~21,6 mil chamadas/mês; a cota gratuita do app é 50 mil/mês)
+# e aplica a retenção uma vez por dia.
+[triggers]
+crons = ["*/2 * * * *"]
+
+# Segredos NÃO ficam aqui. Em produção: `wrangler secret put ADMIN_TOKEN` (idem VIEW_TOKEN, INGEST_TOKEN,
+# EWELINK_APP_ID, EWELINK_APP_SECRET).
+# Em desenvolvimento: arquivo .dev.vars (veja .dev.vars.example).

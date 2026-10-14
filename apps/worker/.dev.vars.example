@@ -1,0 +1,15 @@
+# Copie para .dev.vars (ignorado pelo git) ou rode `npm run setup` na raiz, que gera os tokens aleatórios.
+# NUNCA coloque valores reais neste arquivo de exemplo.
+
+# Grava configuração e conecta a conta eWeLink. Obrigatório.
+ADMIN_TOKEN=troque-por-um-token-longo-e-aleatorio
+
+# Opcional: exige token para ver o painel (a URL da TV leva ?k=...). Só permite ler.
+# VIEW_TOKEN=troque-por-outro-token
+
+# Opcional: rota genérica de ingestão (ESP32/scripts).
+# INGEST_TOKEN=troque-por-outro-token
+
+# Credencial do app de desenvolvedor pessoal eWeLink (dev.ewelink.cc → seu app).
+# EWELINK_APP_ID=
+# EWELINK_APP_SECRET=
