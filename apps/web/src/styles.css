@@ -619,10 +619,9 @@ html.tv button, html.tv a { cursor: pointer; }
 }
 /* Telas largas e baixas (notebook): o mapa tem prioridade; gráfico de 24 h e lista ficam no Painel completo/Histórico. */
 @media (min-width: 1100px) and (max-height: 1000px) {
-  .tvp__col { container-type: inline-size; }
-  .tvp__map { flex: none; }
-  /* Mapa do maior tamanho que cabe na altura, sem deformar (12 × 5). Navegador sem suporte: largura total. */
-  .tvp__map { width: auto; height: min(calc(100vh - 640px), calc(100cqw / 2.4)); align-self: center; }
+  /* O mapa ocupa o espaço que sobrar na coluna, do maior tamanho possível sem deformar (12 × 5). */
+  .tvp__map-fit { flex: 1 1 0; min-height: 110px; display: flex; align-items: center; justify-content: center; container-type: size; }
+  .tvp__map { width: 100%; width: min(100cqw, 240cqh); }
   .tvp__spark-box,
   .tvp__col--irr .tvp__list-title,
   .tvp__col--irr .tvp__list,
