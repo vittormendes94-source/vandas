@@ -316,6 +316,7 @@ export async function applyRetention(db: D1Database, config: AppConfig, now: num
     db.prepare('DELETE FROM readings_hourly WHERE hour_start < ?1').bind(hourlyCut),
     db.prepare('DELETE FROM irrigations WHERE started_at < ?1').bind(hourlyCut),
     db.prepare('DELETE FROM weather_cache WHERE fetched_at < ?1').bind(now - 2 * DAY),
+    db.prepare('DELETE FROM automation_log WHERE at < ?1').bind(hourlyCut),
   ]);
   return { rawDeleted: res[0]?.meta.changes ?? 0, hourlyDeleted: res[1]?.meta.changes ?? 0 };
 }

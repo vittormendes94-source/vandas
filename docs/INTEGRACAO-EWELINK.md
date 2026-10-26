@@ -30,7 +30,8 @@ Fonte: documentação oficial em `github.com/CoolKit-Technologies/eWeLink-API` (
 - **Sensores:** só grava leitura com `trigTime` válido. Como a chave é (sensor, `trigTime`), consultar de novo a mesma medição não grava nada.
   - **Valores fora da faixa física:** são descartados.
   - **Modelos não documentados:** aparecem como "não suportado" e não são lidos.
-- **Bomba:** mostra só o estado atual. "Desconhecido" em três casos: o Sonoff está offline, a leitura parou há mais de 10 min, ou o Sonoff não está vinculado. **Nada da bomba é gravado em histórico** e **nenhum comando é enviado**.
+- **Bomba:** estado atual e registro de cada irrigação. "Desconhecido" em três casos: o Sonoff está offline, a leitura parou há mais de 10 min, ou o Sonoff não está vinculado.
+- **Automação** (Configurações → Automação da bomba): liga nos horários definidos se as regras permitirem, desliga fora das regras ou ao passar do tempo, e configura o "Inching" do Sonoff (desligar sozinho). Comando: `POST /v2/device/thing/status {type: 1, id, params}`. Sem confirmação recente do estado da bomba, nenhum comando é enviado. Cada ação fica em Histórico → Ações automáticas.
 - **Saúde da integração:** a tela mostra a última leitura, o último erro, as falhas seguidas, o uso da cota e a validade dos tokens e da credencial anual.
 
 ## Pontos que só o teste real confirma

@@ -96,7 +96,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
         <div className="card__head">
           <div>
             <h2 className="card__title">Bomba: conexão eWeLink</h2>
-            <div className="card__sub">Usada só para mostrar se a bomba está ligada ou desligada (Sonoff Wi-Fi), pela API oficial do eWeLink a cada 2 min. Nenhum comando é enviado.</div>
+            <div className="card__sub">Mostra se a bomba está ligada ou desligada (Sonoff Wi-Fi), pela API oficial do eWeLink a cada 2 min, e executa a automação da bomba (Configurações → Automação).</div>
           </div>
           {eu && <Chip kind={!eu.configured ? 'warn' : !eu.connected ? 'warn' : eu.lastError ? 'bad' : 'ok'}>{!eu.configured ? 'Não configurado' : !eu.connected ? 'Não conectado' : eu.lastError ? 'Com falha' : 'Conectado'}</Chip>}
         </div>

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DAY, HOUR, MIN, defaultConfig } from '@orq/core';
+import { DAY, HOUR, MIN, defaultConfig, localDateTimeString } from '@orq/core';
 import type { AppConfig, HistoryResponse, LiveResponse, ProviderDeviceDto } from '@orq/core';
 import { app } from '../src/app';
 import type { Env } from '../src/env';
@@ -348,6 +348,86 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     expect(l.irrigations.last).toHaveLength(2);
     vi.useRealTimers();
     expect((await call(`/api/irrigations?from=${iso(T0)}&to=${iso(T0 - 1)}`)).status).toBe(400);
+  });
+
+  it('automação: liga no horário, configura o Inching, desliga ao passar do tempo e quando as regras proíbem', async () => {
+    const mock = setup();
+    mock.state.devices = [switchThing('bomba01', 'Bomba', { state: 'off' })];
+    await connect(mock);
+    const T = Math.floor(Date.now() / MIN) * MIN;
+    const slot = localDateTimeString(T).slice(11, 16);
+    await link((c) => {
+      c.pump.deviceId = 'bomba01';
+      c.irrigationRules = { maxTempC: 30, maxSunWm2: null, avoidFrom: null, avoidTo: null };
+      c.automation = { ...c.automation, mode: 'automatico', schedule: [slot] };
+    });
+    // estufa fresca
+    await ingest([reading({ sensorId: 's1', temperatureC: 24, measuredAt: iso(T - MIN) })]);
+
+    await runScheduled(env, T);
+    expect(mock.state.commands[0]).toEqual({ id: 'bomba01', params: { switch: 'on' } });
+    vi.useFakeTimers({ now: T + MIN, toFake: ['Date'] });
+    let l = await live();
+    vi.useRealTimers();
+    expect(l.automation).toMatchObject({ mode: 'automatico', ready: true, blockedBy: null });
+    expect(l.automation.slots).toEqual([{ time: slot, status: 'feito', detail: 'irrigação iniciada pelo sistema' }]);
+    expect(l.automation.lastCommand).toMatchObject({ action: 'on', ok: true, reason: `horário das ${slot}` });
+    expect(l.pump.state).toBe('on');
+
+    // próxima rodada: ainda dentro do tempo → só configura o Inching (desliga sozinho em 5 min, no próprio Sonoff)
+    await runScheduled(env, T + 4 * MIN);
+    expect(mock.state.commands[1]).toEqual({ id: 'bomba01', params: { pulse: 'on', pulseWidth: 300_000 } });
+    expect(mock.state.commands).toHaveLength(2);
+
+    // passou de 5 min → o servidor desliga (segunda camada)
+    await runScheduled(env, T + 6 * MIN);
+    expect(mock.state.commands[2]).toEqual({ id: 'bomba01', params: { switch: 'off' } });
+
+    // ligada à mão com a estufa quente → desliga pelas regras
+    await ingest([reading({ sensorId: 's1', temperatureC: 33, measuredAt: iso(T) })]);
+    mock.state.devices[0].itemData.params.switch = 'on';
+    await runScheduled(env, T + 10 * MIN);
+    expect(mock.state.commands[3]).toEqual({ id: 'bomba01', params: { switch: 'off' } });
+
+    const log = (await (await call(`/api/automation/log?from=${iso(T - DAY)}&to=${iso(T + DAY)}`)).json()) as { entries: { action: string; reason: string; ok: boolean }[] };
+    expect(log.entries.map((e) => e.action)).toEqual(['off', 'off', 'inching', 'on']);
+    expect(log.entries[0]!.reason).toContain('Estufa a 33,0°');
+    expect(log.entries[1]!.reason).toBe('passou do tempo de 5 min');
+  });
+
+  it('automação: Sonoff fora do ar ao receber o comando → registra a falha e tenta de novo depois', async () => {
+    const mock = setup();
+    mock.state.devices = [switchThing('bomba01', 'Bomba', { state: 'off' })];
+    await connect(mock);
+    const T = Math.floor(Date.now() / MIN) * MIN;
+    const slot = localDateTimeString(T).slice(11, 16);
+    await link((c) => {
+      c.pump.deviceId = 'bomba01';
+      c.irrigationRules = { maxTempC: null, maxSunWm2: null, avoidFrom: null, avoidTo: null };
+      c.automation = { ...c.automation, schedule: [slot], syncInching: false };
+    });
+    mock.state.failCommands = true;
+    await runScheduled(env, T);
+    vi.useFakeTimers({ now: T + MIN, toFake: ['Date'] });
+    let l = await live();
+    vi.useRealTimers();
+    expect(l.automation.lastCommand).toMatchObject({ action: 'on', ok: false });
+    expect(l.automation.slots[0]).toMatchObject({ status: 'adiado' });
+    // dentro do intervalo de espera, não insiste
+    await runScheduled(env, T + 2 * MIN);
+    mock.state.failCommands = false;
+    await runScheduled(env, T + 4 * MIN);
+    expect(mock.state.commands).toEqual([{ id: 'bomba01', params: { switch: 'on' } }]);
+    vi.useFakeTimers({ now: T + 5 * MIN, toFake: ['Date'] });
+    l = await live();
+    vi.useRealTimers();
+    expect(l.automation.slots[0]).toMatchObject({ status: 'feito' });
+  });
+
+  it('automação sem eWeLink conectado: não faz nada e diz o que falta', async () => {
+    const l = await live();
+    expect(l.automation).toMatchObject({ mode: 'automatico', ready: false, blockedBy: 'Conecte a conta eWeLink' });
+    expect((await live({ ...env, EWELINK_APP_ID: undefined } as Env)).automation.blockedBy).toBe('Aguardando a credencial do eWeLink no servidor');
   });
 
   it('callback com state errado/expirado ou sem conexão iniciada é recusado', async () => {

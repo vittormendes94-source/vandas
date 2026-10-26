@@ -14,6 +14,8 @@
  *  - Outros sensores SONOFF não constam da documentação pública; seus formatos vêm do integrador comunitário
  *    SonoffLAN (github.com/AlexxIT/SonoffLAN, core/devices.py) e de JSON real publicado por usuários — ver CLIMATE_FORMATS.
  *  - Liga/desliga: params.switch 'on'|'off' (1 canal) ou params.switches[{switch, outlet}] (vários canais).
+ *  - Comando: POST /v2/device/thing/status {type: 1, id: deviceid, params} com Bearer (APICenterV2 "Update the status
+ *    of a specified thing"). "Inching" (desliga sozinho): params.pulse 'on' + pulseWidth em ms (múltiplo de 500).
  *  - App gratuito: 50 000 chamadas/mês por região; intervalo ≥ 500 ms e ≤ 300 chamadas/5 min por IP.
  *
  * NÃO foi testado contra a API real (não há conta/dispositivos neste ambiente). Foi testado contra um servidor
@@ -472,4 +474,36 @@ export async function pollEwelink(env: Env, db: D1Database, config: AppConfig, n
     logError('ewelink', err, env, { code: err.code });
     return { ran: true, reason: err.code };
   }
+}
+
+/* -------------------------------------------------- comandos -------------------------------------------------- */
+
+/**
+ * Envia parâmetros a um dispositivo (ligar/desligar, Inching). Usa o mesmo token e a mesma renovação da leitura.
+ * Lança EwelinkError em caso de falha (o chamador registra).
+ */
+export async function sendDeviceParams(env: Env, db: D1Database, deviceId: string, params: Record<string, unknown>, now: number): Promise<void> {
+  if (!isConfigured(env)) throw new EwelinkError('not_configured', 'Integração eWeLink não configurada no servidor.');
+  const state = await loadState(db, now);
+  let tokens = await loadTokens(env, db);
+  if (!tokens || !state.region) throw new EwelinkError('not_connected', 'Conta eWeLink não conectada.');
+  const body = { type: 1, id: deviceId, params };
+  try {
+    try {
+      await call(env, state, state.region, '/v2/device/thing/status', { method: 'POST', body, auth: { bearer: tokens.at } });
+    } catch (e) {
+      if (!(e instanceof EwelinkError) || e.code !== 'auth') throw e;
+      tokens = await refresh(env, db, state, tokens, now);
+      await new Promise((r) => setTimeout(r, 600));
+      await call(env, state, state.region, '/v2/device/thing/status', { method: 'POST', body, auth: { bearer: tokens.at } });
+    }
+  } finally {
+    await putSetting(db, STATE_KEY, state, now);
+  }
+}
+
+/** Parâmetros de liga/desliga para o canal da bomba (1 canal: `switch`; vários: `switches`). */
+export function switchParams(multiChannel: boolean, outlet: number, on: boolean): Record<string, unknown> {
+  const v = on ? 'on' : 'off';
+  return multiChannel ? { switches: [{ switch: v, outlet }] } : { switch: v };
 }

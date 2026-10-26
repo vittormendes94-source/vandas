@@ -23,6 +23,7 @@ import { collectorStatusDto, ingestZigbee } from './zigbee';
 import { listIrrigations, pumpStatusOf, recentIrrigations, trackPumpFromDb } from './irrigation';
 import { pollSwitchbot, switchbotStatusDto } from './switchbot';
 import { geocode, weatherFor } from './weather';
+import { automationLog, automationStatusDto } from './automation';
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -69,13 +70,14 @@ app.get('/api/meta', (c) => c.json({ viewProtected: !!c.env.VIEW_TOKEN, writeAut
 app.get('/api/live', requireView, async (c) => {
   const now = Date.now();
   const config = await getConfig(c.env.DB);
-  const [latest, devices, ewelink, collector, switchbot, irrigations] = await Promise.all([
+  const [latest, devices, ewelink, collector, switchbot, irrigations, automation] = await Promise.all([
     latestReadings(c.env.DB, config.sensors.map((s) => s.id)),
     listAllProviderDevices(c.env.DB),
     statusDto(c.env, c.env.DB, now),
     collectorStatusDto(c.env.DB),
     switchbotStatusDto(c.env, c.env.DB, now),
     listIrrigations(c.env.DB, Math.min(startOfLocalDay(now), now - 7 * 86_400_000), now, 200),
+    automationStatusDto(c.env, c.env.DB, config, now),
   ]);
   const byId = new Map(devices.map((d) => [d.deviceId, d]));
   const ewelinkById = new Map(devices.filter((d) => d.provider === PROVIDER).map((d) => [d.deviceId, d]));
@@ -93,6 +95,7 @@ app.get('/api/live', requireView, async (c) => {
     links,
     pump: { comm: pump.comm, state: pump.state, seenAt: isoOrNull(pump.seenAt), deviceName: pd?.name ?? null },
     irrigations: summarizeIrrigations(irrigations.length ? irrigations : await recentIrrigations(c.env.DB, 5), startOfLocalDay(now)),
+    automation,
     integration: { switchbot, ewelink, collector, writeAuthConfigured: !!c.env.ADMIN_TOKEN, ingestAuthConfigured: !!c.env.INGEST_TOKEN },
   };
   return c.json(body);
@@ -201,6 +204,14 @@ app.get('/api/irrigations', requireView, async (c) => {
   if (to <= from || to - from > 400 * 86_400_000) throw new HttpError(400, 'invalid_range', 'Intervalo inválido (máx. 400 dias).');
   const events = await listIrrigations(c.env.DB, from, to, 2001);
   return c.json({ from: iso(from), to: iso(to), events: events.slice(0, 2000), truncated: events.length > 2000 });
+});
+
+/** Ações da automação (ligar/desligar/Inching) no intervalo. Máx. 400 dias e 2000 registros. */
+app.get('/api/automation/log', requireView, async (c) => {
+  const from = parseInstant(c.req.query('from'), 'from');
+  const to = parseInstant(c.req.query('to'), 'to');
+  if (to <= from || to - from > 400 * 86_400_000) throw new HttpError(400, 'invalid_range', 'Intervalo inválido (máx. 400 dias).');
+  return c.json({ entries: await automationLog(c.env.DB, from, to, 2000) });
 });
 
 app.post('/api/ewelink/disconnect', requireAdmin, async (c) => {

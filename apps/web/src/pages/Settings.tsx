@@ -255,7 +255,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         </div>
       </Section>
 
-      <Section title="Bomba (Sonoff)" sub="O painel mostra se a bomba está ligada ou desligada, conforme o Sonoff informa ao eWeLink, e registra cada irrigação. Nenhum comando é enviado à bomba.">
+      <Section title="Bomba (Sonoff)" sub="O painel mostra se a bomba está ligada ou desligada, conforme o Sonoff informa ao eWeLink, e registra cada irrigação. Os comandos de ligar/desligar vêm da Automação (abaixo).">
         <div className="form-grid">
           <label className="field">
             <span>Sonoff da bomba</span>
@@ -269,14 +269,14 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
             max={180}
             value={draft.pump.maxRunMin}
             onChange={(v) => set((d) => void (d.pump.maxRunMin = v as number))}
-            hint="Se a bomba ficar ligada mais que isso (+2 min de margem de leitura), a TV avisa em vermelho. Para a bomba DESLIGAR sozinha, configure o mesmo tempo no modo “Inching” do Sonoff, no app eWeLink."
+            hint="Duração de cada irrigação automática. Com a automação ligada, o Sonoff é configurado para desligar sozinho após este tempo (Inching) e o servidor desliga se passar. A TV avisa em vermelho se passar (+2 min de margem)."
           />
         </div>
       </Section>
 
       <Section
         title="Regras de irrigação"
-        sub="Quando NÃO irrigar. A TV mostra “Pode irrigar agora?” e avisa em vermelho se a bomba ligar fora destas regras. O painel não liga nem desliga a bomba. Deixe em branco para desativar uma regra."
+        sub="Quando NÃO irrigar. A automação não liga fora destas regras e DESLIGA a bomba se ela estiver ligada fora delas. A TV mostra “Pode irrigar agora?”. Deixe em branco para desativar uma regra."
       >
         <div className="form-grid">
           <Num
@@ -313,6 +313,8 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
           </label>
         </div>
       </Section>
+
+      <AutomationSection value={draft.automation} onChange={(fn) => set((d) => fn(d.automation))} runMin={draft.pump.maxRunMin} />
 
       <LocationSection value={draft.location} onChange={(v) => set((d) => void (d.location = v))} />
 
@@ -373,6 +375,99 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
       </div>
     </main>
   );
+}
+
+/** Automação da bomba: horários, proteção e limites (ver packages/core/src/automation.ts). */
+function AutomationSection({ value: a, onChange, runMin }: { value: AppConfig['automation']; onChange: (fn: (a: AppConfig['automation']) => void) => void; runMin: number }) {
+  const modes: [AppConfig['automation']['mode'], string, string][] = [
+    ['automatico', 'Automático', 'Liga nos horários abaixo (se as regras permitirem) e desliga fora das regras ou ao passar do tempo.'],
+    ['protecao', 'Só proteção', 'Não liga nunca; só desliga a bomba fora das regras ou ao passar do tempo (timers do app eWeLink continuam valendo).'],
+    ['desligado', 'Desligado', 'Só monitora. Nenhum comando é enviado à bomba.'],
+  ];
+  return (
+    <Section
+      title="Automação da bomba"
+      sub="Funciona sozinha, sem ninguém: precisa da conta eWeLink conectada e do Sonoff da bomba escolhido acima. Cada ação fica registrada no Histórico."
+      chip={<Chip kind={a.mode === 'desligado' ? 'warn' : 'ok'}>{modes.find((m) => m[0] === a.mode)![1]}</Chip>}
+    >
+      <div className="rowlist">
+        {modes.map(([m, label, help]) => (
+          <label key={m} className="check" style={{ alignItems: 'flex-start' }}>
+            <input type="radio" name="automation-mode" checked={a.mode === m} onChange={() => onChange((x) => void (x.mode = m))} />
+            <span>
+              <b>{label}</b> — <span className="small mute">{help}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {a.mode === 'automatico' && (
+        <div style={{ marginTop: '0.8rem' }}>
+          <div className="small" style={{ fontWeight: 700, marginBottom: '0.4rem' }}>
+            Horários de irrigação ({runMin} min cada)
+          </div>
+          <div className="toolbar">
+            {a.schedule.map((t, i) => (
+              <span key={i} className="toolbar" style={{ gap: '0.25rem' }}>
+                <input
+                  className="input"
+                  type="time"
+                  style={{ width: '8rem' }}
+                  value={t}
+                  onChange={(e) => e.target.value && onChange((x) => void (x.schedule[i] = e.target.value))}
+                  aria-label={`Horário ${i + 1}`}
+                />
+                <button className="btn btn--sm btn--danger" type="button" onClick={() => onChange((x) => void x.schedule.splice(i, 1))} aria-label={`Remover horário ${t}`}>
+                  ✕
+                </button>
+              </span>
+            ))}
+            {a.schedule.length < 24 && (
+              <button className="btn btn--sm" type="button" onClick={() => onChange((x) => void x.schedule.push(nextFreeTime(x.schedule)))}>
+                + Adicionar horário
+              </button>
+            )}
+          </div>
+          {a.schedule.length === 0 && <p className="small" style={{ color: 'var(--amber)' }}>Nenhum horário definido: no modo automático, a bomba só será ligada pela regra de umidade (se ativada).</p>}
+        </div>
+      )}
+
+      <div className="form-grid" style={{ marginTop: '0.8rem' }}>
+        <Num label="Se as regras bloquearem, tentar por até" unit="min" min={0} max={720} value={a.postponeMaxMin} onChange={(v) => onChange((x) => void (x.postponeMaxMin = v as number))} hint="Ex.: sol forte às 07:00 → tenta de novo até liberar; depois disso, pula o horário." />
+        <Num label="Intervalo mínimo entre irrigações" unit="min" min={5} max={1440} value={a.minGapMin} onChange={(v) => onChange((x) => void (x.minGapMin = v as number))} />
+        <Num label="Máximo de irrigações por dia" min={1} max={48} value={a.maxPerDay} onChange={(v) => onChange((x) => void (x.maxPerDay = v as number))} hint="Conta todas, inclusive as ligadas por outro meio." />
+        <Num
+          label="Irrigação extra se a umidade da estufa ficar abaixo de"
+          unit="%"
+          nullable
+          min={10}
+          max={95}
+          value={a.humidityBelowPct}
+          onChange={(v) => onChange((x) => void (x.humidityBelowPct = v))}
+          hint="Opcional. Só irriga se as regras puderem ser avaliadas e permitirem."
+        />
+      </div>
+      <div className="rowlist" style={{ marginTop: '0.6rem' }}>
+        <label className="check">
+          <input type="checkbox" checked={a.skipIfRaining} onChange={(e) => onChange((x) => void (x.skipIfRaining = e.target.checked))} />
+          Não irrigar enquanto estiver chovendo na cidade
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={a.syncInching} onChange={(e) => onChange((x) => void (x.syncInching = e.target.checked))} />
+          Configurar o Sonoff para desligar sozinho após {runMin} min (Inching) — recomendado: funciona mesmo sem internet
+        </label>
+      </div>
+    </Section>
+  );
+}
+
+function nextFreeTime(list: string[]): string {
+  for (const t of ['07:00', '17:00', '12:00', '09:00', '15:00', '06:00', '18:00']) if (!list.includes(t)) return t;
+  for (let h = 0; h < 24; h++) {
+    const t = `${String(h).padStart(2, '0')}:30`;
+    if (!list.includes(t)) return t;
+  }
+  return '00:00';
 }
 
 /** Cidade do orquidário: usada só para o clima de fora (Open-Meteo). */

@@ -21,6 +21,10 @@ export function createEwelinkMock({ appId, appSecret, region = 'us' }) {
     /** Simula cota mensal esgotada (HTTP 403). */
     quota: false,
     devices: [],
+    /** Comandos recebidos ({id, params}). */
+    commands: [],
+    /** Simula dispositivo fora do ar ao receber comando. */
+    failCommands: false,
   };
 
   const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json' } });
@@ -83,6 +87,21 @@ export function createEwelinkMock({ appId, appSecret, region = 'us' }) {
         return err(402, 'access token expired');
       }
       return json({ error: 0, msg: '', data: { thingList: s.devices, total: s.devices.length } });
+    }
+    if (url.pathname === '/v2/device/thing/status' && request.method === 'POST') {
+      if (auth !== `Bearer ${s.at}`) return err(401, 'token invalid');
+      if (s.failCommands) return err(4002, 'device offline');
+      const b = JSON.parse(body);
+      const dev = s.devices.find((d) => d.itemData.deviceid === b.id);
+      if (b.type !== 1 || !dev) return err(405, 'device not found');
+      s.commands.push({ id: b.id, params: b.params });
+      if (b.params.switches) {
+        for (const c of b.params.switches) {
+          const cur = dev.itemData.params.switches.find((x) => x.outlet === c.outlet);
+          if (cur) cur.switch = c.switch;
+        }
+      } else Object.assign(dev.itemData.params, b.params);
+      return json({ error: 0, msg: '', data: {} });
     }
     return err(403, 'api not found');
   }

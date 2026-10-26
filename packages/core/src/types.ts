@@ -95,7 +95,7 @@ export interface AppConfig {
     sprinklers: Sprinkler[];
     layoutProvisional: boolean;
   };
-  /** Bomba: estado atual (ligada/desligada) informado pelo Sonoff; os períodos ligada viram irrigações. Nenhum comando é enviado. */
+  /** Bomba: estado atual (ligada/desligada) informado pelo Sonoff; os períodos ligada viram irrigações. Comandos só pela automação. */
   pump: {
     /** deviceid do Sonoff da bomba no eWeLink. null = não vinculado. */
     deviceId: string | null;
@@ -104,8 +104,19 @@ export interface AppConfig {
     /** Duração esperada de uma irrigação (min). Acima disso o painel avisa que a bomba pode ter ficado ligada. */
     maxRunMin: number;
   };
-  /** Quando NÃO irrigar: estufa quente, sol direto forte, período a evitar. O painel avisa; não comanda a bomba. */
+  /** Quando NÃO irrigar: estufa quente, sol direto forte, período a evitar. A automação respeita; a TV avisa. */
   irrigationRules: { maxTempC: number | null; maxSunWm2: number | null; avoidFrom: string | null; avoidTo: string | null };
+  /** Automação da bomba (ver automation.ts). */
+  automation: {
+    mode: 'desligado' | 'protecao' | 'automatico';
+    schedule: string[];
+    postponeMaxMin: number;
+    minGapMin: number;
+    maxPerDay: number;
+    skipIfRaining: boolean;
+    humidityBelowPct: number | null;
+    syncInching: boolean;
+  };
   /** Cidade do orquidário (clima de fora). null = não informada. */
   location: { name: string; lat: number; lon: number } | null;
   retention: {
