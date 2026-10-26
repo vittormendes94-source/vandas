@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ROOM } from './types';
+import { PlaceSchema } from './weather';
 import type { AppConfig } from './types';
 
 const id = z.string().regex(/^[a-z0-9_-]{1,32}$/, 'Use 1–32 caracteres: a–z, 0–9, "_" ou "-".');
@@ -52,7 +53,14 @@ export const AppConfigSchema = z
       sprinklers: z.array(SprinklerSchema).max(40),
       layoutProvisional: z.boolean(),
     }),
-    pump: z.strictObject({ deviceId: deviceId.nullable(), outlet: z.number().int().min(0).max(3) }),
+    pump: z.strictObject({
+      deviceId: deviceId.nullable(),
+      outlet: z.number().int().min(0).max(3),
+      /** Duração esperada de uma irrigação; acima disso (mais a margem de leitura) o painel avisa. */
+      maxRunMin: z.number().int().min(1).max(180).default(5),
+    }),
+    /** Cidade do orquidário, para o clima de fora (Open-Meteo). null = não informada. */
+    location: PlaceSchema.nullable().default(null),
     retention: z.strictObject({ rawDays: z.number().int().min(7).max(90) }),
   })
   .superRefine((c, ctx) => {
@@ -115,7 +123,8 @@ export function defaultConfig(): AppConfig {
       ],
       layoutProvisional: true,
     },
-    pump: { deviceId: null, outlet: 0 },
+    pump: { deviceId: null, outlet: 0, maxRunMin: 5 },
+    location: null,
     retention: { rawDays: 45 },
   };
 }

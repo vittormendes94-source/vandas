@@ -107,7 +107,7 @@ describe('configuração', () => {
   it('a configuração padrão é válida e não traz limites de alerta pré-definidos', () => {
     expect(AppConfigSchema.safeParse(defaultConfig()).success).toBe(true);
     expect(defaultConfig().alerts).toEqual({ temperature: { min: null, max: null }, humidity: { min: null, max: null }, dpv: { min: null, max: null } });
-    expect(defaultConfig().pump).toEqual({ deviceId: null, outlet: 0 });
+    expect(defaultConfig().pump).toEqual({ deviceId: null, outlet: 0, maxRunMin: 5 });
   });
   it('rejeita sensor fora dos limites, ids repetidos, limites invertidos e vínculos duplicados', () => {
     const c = defaultConfig();

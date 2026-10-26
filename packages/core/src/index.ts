@@ -12,3 +12,5 @@ export * from './dto';
 export * from './zigbee';
 export * from './simple';
 export * from './irrigation';
+export * from './weather';
+export * from './heatmap';

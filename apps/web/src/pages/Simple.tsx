@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   HOUR,
   MIN,
-  ROOM,
   bucketsFromHistory,
   buildSnapshot,
   fmtNum,
@@ -18,11 +17,11 @@ import {
   trendOf,
   valueTone,
 } from '@orq/core';
-import type { AppConfig, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, Snapshot, Trend, ValueTone } from '@orq/core';
-import { useFieldCanvas } from '../components/EnvMap';
+import type { AppConfig, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, SimpleStatus, Snapshot, Trend, ValueTone } from '@orq/core';
+import { SmartMap } from '../components/SmartMap';
+import { Forecast, OutdoorNow, useWeather } from '../components/Weather';
 import { useHistory } from '../hooks/useHistory';
 import type { LiveState } from '../hooks/useLive';
-import { rampGradientCss } from '../lib/colors';
 
 /**
  * Painel da TV (65") e visão para quem não é técnico: uma tela fixa, 3 colunas — temperatura, umidade com os
@@ -36,6 +35,7 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
   const anchor = Math.floor(nowMs / (5 * MIN)) * 5 * MIN;
   const range = useMemo(() => (anchor > 0 ? { from: anchor - 24 * HOUR, to: anchor } : null), [anchor]);
   const hist = useHistory(range);
+  const weather = useWeather();
   const sensorIds = useMemo(() => config?.sensors.map((s) => s.id) ?? [], [config]);
   const buckets = useMemo(() => (hist.data ? bucketsFromHistory(hist.data) : []), [hist.data]);
   const tLine = useMemo(() => meanAcrossSensors(buckets, 'temperature', sensorIds, 15 * MIN), [buckets, sensorIds]);
@@ -52,8 +52,18 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
 
   const latest = new Map<string, Reading | null>(Object.entries(data.latest).map(([id, r]) => [id, r ? readingFromDto(r) : null]));
   const snap = buildSnapshot(config, latest, nowMs);
-  const status = simpleStatus(snap, config, nowMs);
   const pump = simplePump(data.pump, nowMs);
+  const running = pump.tone === 'on' ? data.irrigations.last.find((e) => e.endedAt === null) : undefined;
+  const runningMs = running ? nowMs - Date.parse(running.startedAt) : 0;
+  // margem de 2 min: a bomba é lida a cada 2 min
+  const overrun = !!running && runningMs > (config.pump.maxRunMin + 2) * MIN;
+  const status: SimpleStatus = overrun
+    ? {
+        level: 'bad',
+        headline: `Bomba ligada há ${formatIrrigationDuration(runningMs)}`,
+        details: [`O tempo previsto de irrigação é ${config.pump.maxRunMin} min. Confira se a bomba desligou (risco de esvaziar a caixa d'água).`],
+      }
+    : simpleStatus(snap, config, nowMs);
 
   return (
     <main className="tvp">
@@ -69,6 +79,7 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
             ))}
           </div>
         </div>
+        <OutdoorNow w={weather} />
         <div className="tvp__right">
           <Clock nowMs={nowMs} />
           <div className="tvp__updated">{snap.lastMeasuredAt ? `Última leitura ${formatAge(nowMs - snap.lastMeasuredAt)}` : 'Sem leituras ainda'}</div>
@@ -102,8 +113,9 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
           today={today && today.hMin !== null ? [today.hMin, today.hMax!] : null}
           pumpOn={pump.tone === 'on'}
         />
-        <IrrigationColumn pump={pump} summary={data.irrigations} nowMs={nowMs} />
+        <IrrigationColumn pump={pump} summary={data.irrigations} nowMs={nowMs} maxRunMin={config.pump.maxRunMin} overrun={overrun} />
       </div>
+      <Forecast w={weather} nowMs={nowMs} />
     </main>
   );
 }
@@ -152,12 +164,7 @@ function QuantityColumn(p: {
         )}
         <div className="tvp__word">{mean === null ? (never ? 'Aguardando a primeira leitura' : `Sem sinal · última leitura ${formatAge(p.nowMs - p.snap.lastMeasuredAt!)}`) : toneWord(p.quantity, tone, fresh)}</div>
       </div>
-      <TvMap quantity={p.quantity} snapshot={p.snap} config={p.config} showSprinklers={p.quantity === 'humidity'} pumpOn={p.pumpOn ?? false} />
-      <div className="tvp__scale">
-        <span>{fmtNum(p.config.scales[p.quantity].min, 0)}{u.suffix}</span>
-        <i style={{ background: rampGradientCss(p.quantity) }} />
-        <span>{fmtNum(p.config.scales[p.quantity].max, 0)}{u.suffix}</span>
-      </div>
+      <SmartMap quantity={p.quantity} snapshot={p.snap} config={p.config} pumpOn={p.pumpOn ?? false} />
       {p.line.length < 2 ? (
         <div className="tvp__spark-box tvp__spark-box--empty">
           <span>O gráfico das últimas 24 horas aparece aqui depois das primeiras leituras.</span>
@@ -207,43 +214,7 @@ function toneWord(kind: Quantity, tone: ValueTone, fresh: number): string {
   return { ok: 'Dentro da faixa', low: 'Ar seco', high: 'Muito úmido' }[tone];
 }
 
-/** Mapa limpo para a TV: cor estimada entre os sensores, valores nos pontos e (umidade) os aspersores por cima. */
-function TvMap({ quantity, snapshot, config, showSprinklers, pumpOn }: { quantity: Quantity; snapshot: Snapshot; config: AppConfig; showSprinklers: boolean; pumpOn: boolean }) {
-  const { stageRef, canvasRef, coverage } = useFieldCanvas(quantity, snapshot, config, { hatch: false, grid: false, transparent: true });
-  const u = UNIT[quantity];
-  return (
-    <div className="tvp__map" ref={stageRef}>
-      <canvas ref={canvasRef} role="img" aria-label={`Mapa de ${quantity === 'temperature' ? 'temperatura' : 'umidade'} estimado entre os sensores`} />
-      {showSprinklers && (
-        <svg className={`tvp__spr${pumpOn ? ' tvp__spr--on' : ''}`} viewBox={`0 0 ${ROOM.lengthM} ${ROOM.widthM}`} preserveAspectRatio="none" aria-hidden="true">
-          {config.irrigation.sprinklers.map((s) => (
-            <g key={s.id}>
-              <circle className="tvp__spr-area" cx={s.xM} cy={s.yM} r={s.radiusM} vectorEffect="non-scaling-stroke" />
-              <circle className="tvp__spr-head" cx={s.xM} cy={s.yM} r={0.16} vectorEffect="non-scaling-stroke" />
-            </g>
-          ))}
-        </svg>
-      )}
-      {snapshot.sensors.map((s) => {
-        const v = quantity === 'temperature' ? s.reading?.temperatureC : s.reading?.humidityPct;
-        const state = s.valid && v !== undefined ? 'ok' : s.ageMs === null ? 'wait' : 'lost';
-        return (
-          <div
-            key={s.sensor.id}
-            className={`tvp__pin tvp__pin--${state}`}
-            style={{ left: `${(s.sensor.xM / ROOM.lengthM) * 100}%`, top: `${(s.sensor.yM / ROOM.widthM) * 100}%` }}
-          >
-            <b>{state === 'ok' ? `${fmtNum(v!, u.digits)}${u.suffix}` : state === 'wait' ? 'aguardando' : 'sem sinal'}</b>
-            <small>{s.sensor.name}</small>
-          </div>
-        );
-      })}
-      {snapshot.counts.fresh > 0 && coverage.state !== 'ok' && <div className="tvp__map-flag">Poucos sensores para colorir o mapa</div>}
-    </div>
-  );
-}
-
-function IrrigationColumn({ pump, summary, nowMs }: { pump: ReturnType<typeof simplePump>; summary: IrrigationsSummary; nowMs: number }) {
+function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun }: { pump: ReturnType<typeof simplePump>; summary: IrrigationsSummary; nowMs: number; maxRunMin: number; overrun: boolean }) {
   const dayStart = startOfLocalDay(nowMs);
   return (
     <section className="tvp__col tvp__col--irr" aria-label="Irrigação">
@@ -251,13 +222,13 @@ function IrrigationColumn({ pump, summary, nowMs }: { pump: ReturnType<typeof si
         <SprinklerIcon />
         Irrigação
       </div>
-      <div className={`tvp__pump tvp__pump--${pump.tone}`}>
+      <div className={`tvp__pump tvp__pump--${pump.tone}${overrun ? ' tvp__pump--over' : ''}`}>
         <svg className="tvp__pump-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 2.5c-3.6 4.6-6.5 8.3-6.5 11.6A6.5 6.5 0 0 0 12 20.6a6.5 6.5 0 0 0 6.5-6.5C18.5 10.8 15.6 7.1 12 2.5z" fill="currentColor" />
         </svg>
         <div>
           <div className="tvp__pump-label">{pump.label}</div>
-          <div className="tvp__small">{pump.detail}</div>
+          <div className="tvp__small">{overrun ? `Passou do tempo previsto (${maxRunMin} min)` : pump.detail}</div>
         </div>
       </div>
 
@@ -292,7 +263,7 @@ function IrrigationColumn({ pump, summary, nowMs }: { pump: ReturnType<typeof si
                 const start = Date.parse(e.startedAt);
                 const running = e.endedAt === null;
                 return (
-                  <li key={e.startedAt} className={running ? 'tvp__list-running' : undefined}>
+                  <li key={e.startedAt} className={running ? `tvp__list-running${overrun ? ' tvp__list-over' : ''}` : e.durationMs > (maxRunMin + 2) * MIN ? 'tvp__list-long' : undefined}>
                     <span className="tvp__list-when">
                       {start >= dayStart ? formatTime(start) : `${new Date(start).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })} ${formatTime(start)}`}
                     </span>
@@ -303,7 +274,7 @@ function IrrigationColumn({ pump, summary, nowMs }: { pump: ReturnType<typeof si
               })}
             </ol>
           )}
-          <div className="tvp__footnote">Horários com precisão de ~2 min.</div>
+          <div className="tvp__footnote">Tempo previsto: {maxRunMin} min por irrigação · precisão de ~2 min</div>
         </>
       )}
     </section>

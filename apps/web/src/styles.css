@@ -364,7 +364,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp--loading { align-items: center; justify-content: center; color: var(--dim); font-size: 1.4rem; }
 .tvp__status {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: clamp(10px, 1.2vw, 28px);
   padding: clamp(10px, 1.1vw, 24px) clamp(14px, 1.5vw, 34px);
@@ -407,6 +407,8 @@ html.tv button, html.tv a { cursor: pointer; }
   flex-direction: column;
   gap: clamp(8px, 0.8vw, 18px);
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   padding: clamp(12px, 1.2vw, 28px);
   border-radius: var(--radius);
   background: var(--card);
@@ -417,7 +419,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__col--irr { border-top: 4px solid var(--cyan); }
 .tvp__label { display: flex; align-items: center; gap: 0.45em; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--dim); font-size: clamp(13px, 0.95vw, 24px); }
 .tvp__value-row { display: flex; align-items: baseline; gap: 0.5em; flex-wrap: wrap; }
-.tvp__value { font-size: clamp(54px, 5.4vw, 140px); font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.tvp__value { font-size: clamp(54px, 4.6vw, 120px); font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .tvp__label-icon { width: 1.35em; height: 1.35em; flex: none; }
 .tvp__col--temperature .tvp__label-icon { color: var(--tvp-temp); }
 .tvp__col--humidity .tvp__label-icon { color: var(--tvp-hum); }
@@ -481,7 +483,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__map-flag { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); padding: 0.3em 0.8em; border-radius: 999px; background: rgba(7, 13, 17, 0.85); color: var(--amber); font-size: clamp(12px, 0.85vw, 22px); white-space: nowrap; }
 .tvp__scale { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.6em; color: var(--mute); font-size: clamp(12px, 0.8vw, 20px); }
 .tvp__scale i { height: clamp(6px, 0.5vw, 12px); border-radius: 999px; }
-.tvp__spark-box { flex: 1; min-height: clamp(70px, 9vh, 160px); display: flex; flex-direction: column; }
+.tvp__spark-box { flex: 1; min-height: clamp(50px, 6vh, 140px); display: flex; flex-direction: column; }
 .tvp__spark { display: block; width: 100%; flex: 1; min-height: 0; height: clamp(60px, 8vh, 140px); }
 @media (min-width: 1100px) { .tvp__spark { height: auto; } }
 .tvp__spark-axis { display: flex; justify-content: space-between; color: var(--mute); font-size: clamp(11px, 0.7vw, 18px); border-top: 1px solid var(--line); padding-top: 0.2em; }
@@ -531,6 +533,46 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__empty { color: var(--mute); padding: 0.8em; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.025); }
 .tvp__footnote { margin-top: auto; color: var(--mute); font-size: clamp(11px, 0.7vw, 18px); }
 
+/* Lá fora agora (topo) */
+.tvp__out { display: flex; align-items: center; gap: 0.6em; padding: 0.35em 1.1em 0.35em 0.6em; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.04); }
+.tvp__out-icon { width: clamp(40px, 3.4vw, 86px); height: clamp(40px, 3.4vw, 86px); flex: none; }
+.tvp__out-values { display: flex; align-items: baseline; gap: 0.5em; line-height: 1; }
+.tvp__out-values b { font-size: clamp(26px, 2.4vw, 62px); font-weight: 750; font-variant-numeric: tabular-nums; }
+.tvp__out-values span { font-size: clamp(15px, 1.15vw, 30px); color: var(--dim); font-weight: 600; }
+.tvp__out-label { color: var(--mute); font-size: clamp(12px, 0.8vw, 20px); margin-top: 0.25em; }
+
+/* Legenda do mapa */
+.tvp__legend { display: flex; flex-direction: column; gap: 0.25em; }
+.tvp__legend-bar { position: relative; height: clamp(8px, 0.65vw, 16px); border-radius: 999px; }
+.tvp__legend-band { position: absolute; top: -3px; bottom: -3px; border: 2px solid rgba(255, 255, 255, 0.75); border-radius: 999px; }
+.tvp__legend-mark { position: absolute; top: 50%; width: clamp(9px, 0.7vw, 18px); height: clamp(9px, 0.7vw, 18px); transform: translate(-50%, -50%); border-radius: 50%; background: #fff; border: 2px solid #0a141a; }
+.tvp__legend-labels { position: relative; display: flex; justify-content: space-between; color: var(--mute); font-size: clamp(11px, 0.78vw, 20px); min-height: 1.3em; }
+.tvp__legend-mid { position: absolute; top: 0; transform: translateX(-50%); color: var(--dim); font-weight: 600; white-space: nowrap; }
+.tvp__insight { color: var(--dim); font-size: clamp(13px, 0.92vw, 24px); }
+.tvp__insight b { color: var(--text); }
+.tvp__map-flag--on { bottom: auto; top: 6%; color: #8fd3ff; }
+
+/* Bomba passou do tempo */
+.tvp__pump--over { background: linear-gradient(90deg, rgba(255, 107, 107, 0.3), var(--card-2)); outline: 2px solid var(--red); }
+.tvp__pump--over .tvp__pump-label, .tvp__pump--over .tvp__pump-icon { color: var(--red); }
+.tvp__pump--over .tvp__small { color: #ffb3b3; }
+.tvp__list-long .tvp__list-dur { color: var(--amber); }
+.tvp__list-over { outline-color: var(--red) !important; }
+.tvp__list-over .tvp__list-dur { color: var(--red) !important; }
+
+/* Previsão de 7 dias (faixa de baixo) */
+.tvp__fc { display: grid; grid-template-columns: auto 1fr; gap: clamp(10px, 1.2vw, 28px); align-items: center; padding: clamp(8px, 0.8vw, 18px) clamp(12px, 1.2vw, 28px); border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); }
+.tvp__fc--empty { display: block; color: var(--mute); font-size: clamp(13px, 0.9vw, 22px); }
+.tvp__fc-head { display: flex; flex-direction: column; gap: 0.3em; }
+.tvp__fc-days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: clamp(6px, 0.6vw, 14px); }
+.tvp__fc-days li { display: grid; grid-template-columns: auto 1fr; grid-template-areas: 'icon day' 'icon temp' 'rain rain'; column-gap: 0.5em; align-items: center; padding: 0.4em 0.7em; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.03); }
+.tvp__fc-day { grid-area: day; font-weight: 700; font-size: clamp(13px, 0.95vw, 24px); }
+.tvp__fc-icon { grid-area: icon; width: clamp(32px, 2.6vw, 66px); height: clamp(32px, 2.6vw, 66px); }
+.tvp__fc-temp { grid-area: temp; color: var(--mute); font-size: clamp(13px, 0.9vw, 22px); font-variant-numeric: tabular-nums; }
+.tvp__fc-temp b { color: var(--text); }
+.tvp__fc-rain { grid-area: rain; color: #8fd3ff; font-size: clamp(12px, 0.85vw, 21px); font-weight: 600; min-height: 1.2em; }
+.tvp__fc-wet { background: rgba(56, 182, 255, 0.14) !important; outline: 1px solid rgba(143, 211, 255, 0.45); }
+
 /* Telas largas (computador e TV): tudo cabe numa tela, sem rolagem. */
 @media (min-width: 1100px) {
   .tvp { height: 100vh; overflow: hidden; }
@@ -541,5 +583,10 @@ html.tv button, html.tv a { cursor: pointer; }
   .tvp__cols { grid-template-columns: 1fr; }
   .tvp__status { grid-template-columns: auto 1fr; }
   .tvp__right { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; }
+  .tvp__out { grid-column: 1 / -1; }
+  .tvp__fc { grid-template-columns: 1fr; }
+  .tvp__fc-days { grid-template-columns: 1fr; gap: 0.3em; }
+  .tvp__fc-days li { grid-template-columns: 4.5em 2.2em 1fr auto; grid-template-areas: 'day icon temp rain'; }
+  .tvp__fc-icon { width: 2em; height: 2em; }
   .tvp__clock { align-items: flex-start; text-align: left; }
 }
