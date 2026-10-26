@@ -610,3 +610,56 @@ describe('SwitchBot (origem dos sensores Outdoor Meter, sem computador no local)
     expect((await live(e)).integration.switchbot.lastSuccessAt).not.toBeNull();
   });
 });
+
+describe('clima da cidade (Open-Meteo)', () => {
+  const forecast = {
+    current: { time: '2026-10-26T15:00', temperature_2m: 27.4, relative_humidity_2m: 58, precipitation: 0, weather_code: 2, is_day: 1 },
+    daily: {
+      time: ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01'],
+      weather_code: [2, 61, 80, 95, 3, 0, 1],
+      temperature_2m_max: [29, 25, 24, 26, 28, 30, 31],
+      temperature_2m_min: [17, 18, 17, 18, 16, 17, 18],
+      precipitation_sum: [0, 12, 6, 22, 0, 0, 0],
+      precipitation_probability_max: [5, 80, 65, 90, 20, 0, 3],
+    },
+  };
+  const weather = async () => (await (await call('/api/weather')).json()) as import('@orq/core').WeatherResponse;
+
+  it('sem cidade: não consulta nada; com cidade: busca, guarda 15 min e, se falhar depois, mostra o guardado como desatualizado', async () => {
+    const calls: string[] = [];
+    let fail = false;
+    vi.stubGlobal('fetch', async (input: RequestInfo) => {
+      calls.push(String(input));
+      if (fail) return new Response('erro', { status: 500 });
+      return new Response(JSON.stringify(forecast), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    await saveConfig(env.DB, { ...defaultConfig(), location: null }, Date.now());
+    expect(await weather()).toMatchObject({ configured: false, data: null });
+    expect(calls).toHaveLength(0);
+
+    await saveConfig(env.DB, { ...defaultConfig(), revision: 1, location: { name: 'Uberlândia, Minas Gerais', lat: -18.9186, lon: -48.2772 } }, Date.now());
+    const w1 = await weather();
+    expect(w1).toMatchObject({ configured: true, place: 'Uberlândia, Minas Gerais', stale: false, error: null });
+    expect(w1.data!.current.temperatureC).toBe(27.4);
+    expect(w1.data!.days).toHaveLength(7);
+    expect(calls[0]).toContain('latitude=-18.9186');
+    await weather();
+    expect(calls).toHaveLength(1); // do cache
+
+    await env.DB.prepare('UPDATE weather_cache SET fetched_at = fetched_at - ?').bind(16 * MIN).run();
+    fail = true;
+    const w3 = await weather();
+    expect(calls).toHaveLength(2);
+    expect(w3).toMatchObject({ stale: true });
+    expect(w3.data!.current.temperatureC).toBe(27.4);
+    expect(w3.error).toContain('500');
+  });
+
+  it('busca de cidade exige token de administração', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ results: [{ name: 'Uberlândia', latitude: -18.91, longitude: -48.27, admin1: 'Minas Gerais', country: 'Brasil' }] }), { status: 200 }));
+    expect((await call('/api/geocode?q=uberl')).status).toBe(401);
+    const r = await call('/api/geocode?q=uberl', { headers: { authorization: `Bearer ${ADMIN}` } });
+    expect(r.status).toBe(200);
+    expect(((await r.json()) as { places: { label: string }[] }).places[0]!.label).toBe('Uberlândia, Minas Gerais, Brasil');
+  });
+});

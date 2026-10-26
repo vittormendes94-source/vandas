@@ -22,6 +22,7 @@ import {
 import { collectorStatusDto, ingestZigbee } from './zigbee';
 import { listIrrigations, pumpStatusOf, recentIrrigations, trackPumpFromDb } from './irrigation';
 import { pollSwitchbot, switchbotStatusDto } from './switchbot';
+import { geocode, weatherFor } from './weather';
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -125,6 +126,12 @@ app.get('/api/history', requireView, async (c) => {
   const body: HistoryResponse = { from: iso(from), to: iso(to), resolution, detail, series: h.series, truncated: h.truncated };
   return c.json(body);
 });
+
+/** Clima da cidade (lá fora): agora + 7 dias, pelo Open-Meteo. É previsão para a cidade, não medição no orquidário. */
+app.get('/api/weather', requireView, async (c) => c.json(await weatherFor(c.env.DB, await getConfig(c.env.DB), Date.now())));
+
+/** Busca de cidade (para Configurações). */
+app.get('/api/geocode', requireAdmin, async (c) => c.json({ places: await geocode(c.req.query('q') ?? '') }));
 
 /** Dispositivos das integrações (coletor Zigbee e eWeLink), para vincular sensores e bomba. */
 app.get('/api/devices', requireView, async (c) => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AppConfigSchema, ROOM, fmtNum } from '@orq/core';
-import type { AppConfig, Limits, ProviderDeviceDto } from '@orq/core';
+import type { AppConfig, GeoPlace, Limits, ProviderDeviceDto } from '@orq/core';
 import { PlanEditor } from '../components/PlanEditor';
 import { Chip, Notice } from '../components/ui';
 import type { LiveState } from '../hooks/useLive';
@@ -255,15 +255,26 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         </div>
       </Section>
 
-      <Section title="Bomba (Sonoff)" sub="O painel mostra só se a bomba está ligada ou desligada agora, conforme o Sonoff informa ao eWeLink. Nada é registrado em histórico e nenhum comando é enviado.">
+      <Section title="Bomba (Sonoff)" sub="O painel mostra se a bomba está ligada ou desligada, conforme o Sonoff informa ao eWeLink, e registra cada irrigação. Nenhum comando é enviado à bomba.">
         <div className="form-grid">
           <label className="field">
             <span>Sonoff da bomba</span>
             <DeviceSelect devices={devices} kind="switch" value={draft.pump.deviceId} taken={draft.sensors.map((x) => x.externalId ?? '')} onChange={(v) => set((d) => void (d.pump.deviceId = v))} />
           </label>
           <Num label="Canal" min={0} max={3} value={draft.pump.outlet} onChange={(v) => set((d) => void (d.pump.outlet = (v as number) || 0))} hint="0 = primeiro canal. Só muda em Sonoff de vários canais." />
+          <Num
+            label="Tempo de cada irrigação"
+            unit="min"
+            min={1}
+            max={180}
+            value={draft.pump.maxRunMin}
+            onChange={(v) => set((d) => void (d.pump.maxRunMin = v as number))}
+            hint="Se a bomba ficar ligada mais que isso (+2 min de margem de leitura), a TV avisa em vermelho. Para a bomba DESLIGAR sozinha, configure o mesmo tempo no modo “Inching” do Sonoff, no app eWeLink."
+          />
         </div>
       </Section>
+
+      <LocationSection value={draft.location} onChange={(v) => set((d) => void (d.location = v))} />
 
       <Section title="Frescor dos dados e replay" sub="O sistema lê a nuvem SwitchBot a cada 2 min e só grava quando o valor muda. A SwitchBot atualiza a nuvem a cada 2 a 30 min, conforme a variação. Com o padrão (atrasado após 60 min, sem comunicação após 180 min), um sensor parado é sinalizado. Ajuste depois de observar a frequência real.">
         <div className="form-grid">
@@ -321,6 +332,74 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         )}
       </div>
     </main>
+  );
+}
+
+/** Cidade do orquidário: usada só para o clima de fora (Open-Meteo). */
+function LocationSection({ value, onChange }: { value: AppConfig['location']; onChange: (v: AppConfig['location']) => void }) {
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [places, setPlaces] = useState<GeoPlace[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const search = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      setPlaces((await api.geocode(q)).places);
+    } catch (e) {
+      const ae = e as ApiError;
+      setErr(ae.status === 401 ? 'Informe o token de administração (no topo da página) para buscar.' : ae.message);
+      setPlaces(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Section
+      title="Cidade do orquidário (previsão do tempo)"
+      sub="Usada para mostrar na TV o tempo lá fora e a previsão de chuva dos próximos 7 dias (Open-Meteo, gratuito). É previsão para a cidade, não medição na estufa."
+      chip={value ? <Chip kind="ok">{value.name}</Chip> : <Chip kind="warn">Não informada</Chip>}
+    >
+      <form
+        className="toolbar"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (q.trim().length >= 2) void search();
+        }}
+      >
+        <input className="input" style={{ maxWidth: '22rem' }} placeholder="Nome da cidade" aria-label="Nome da cidade" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="btn" type="submit" disabled={busy || q.trim().length < 2}>
+          {busy ? 'Buscando…' : 'Buscar'}
+        </button>
+        {value && (
+          <button className="btn btn--sm btn--danger" type="button" onClick={() => onChange(null)}>
+            Remover cidade
+          </button>
+        )}
+      </form>
+      {err && <p className="small" style={{ color: 'var(--red)' }}>{err}</p>}
+      {places && places.length === 0 && <p className="small mute">Nenhuma cidade encontrada.</p>}
+      {places && places.length > 0 && (
+        <div className="rowlist" style={{ marginTop: '0.6rem' }}>
+          {places.map((p) => (
+            <button
+              key={`${p.lat},${p.lon}`}
+              type="button"
+              className="btn"
+              style={{ justifyContent: 'flex-start' }}
+              onClick={() => {
+                onChange({ name: p.name, lat: Math.round(p.lat * 1e4) / 1e4, lon: Math.round(p.lon * 1e4) / 1e4 });
+                setPlaces(null);
+                setQ('');
+              }}
+            >
+              {p.label} <span className="tiny mute">({fmtNum(p.lat, 2)}, {fmtNum(p.lon, 2)})</span>
+            </button>
+          ))}
+          <p className="tiny mute" style={{ margin: 0 }}>Depois de escolher, clique em “Salvar alterações”.</p>
+        </div>
+      )}
+    </Section>
   );
 }
 

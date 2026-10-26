@@ -95,13 +95,17 @@ export interface AppConfig {
     sprinklers: Sprinkler[];
     layoutProvisional: boolean;
   };
-  /** Bomba: só o estado atual (ligada/desligada) informado pelo Sonoff. Nada é registrado em histórico. */
+  /** Bomba: estado atual (ligada/desligada) informado pelo Sonoff; os períodos ligada viram irrigações. Nenhum comando é enviado. */
   pump: {
     /** deviceid do Sonoff da bomba no eWeLink. null = não vinculado. */
     deviceId: string | null;
     /** Canal (0 = primeiro) em Sonoff de vários canais. */
     outlet: number;
+    /** Duração esperada de uma irrigação (min). Acima disso o painel avisa que a bomba pode ter ficado ligada. */
+    maxRunMin: number;
   };
+  /** Cidade do orquidário (clima de fora). null = não informada. */
+  location: { name: string; lat: number; lon: number } | null;
   retention: {
     /** Dias de leituras brutas mantidas. O histórico horário agregado é mantido por mais tempo. */
     rawDays: number;
