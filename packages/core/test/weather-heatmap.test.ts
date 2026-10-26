@@ -159,3 +159,21 @@ describe('projeção com poucos sensores', () => {
     expect(f.values[0]).toBeCloseTo(f.values[4 * 12]!, 6); // constante na perpendicular
   });
 });
+
+describe('zonas de calor', () => {
+  it('escala com amplitude mínima e paleta (umidade invertida)', async () => {
+    const { heatScale, heatStops, buildHeatZones, colorAt } = await import('../src');
+    const sc = heatScale('temperature', [26.2, 26.4]);
+    expect(sc.lo).toBeCloseTo(26, 6);
+    expect(sc.hi).toBeCloseTo(26.6, 6);
+    expect(heatScale('humidity', [98, 99.8])).toEqual({ lo: 97, hi: 100 });
+    const t = heatStops('temperature', 20, 30);
+    expect(colorAt(t, 30)[0]).toBeGreaterThan(200); // quente = vermelho
+    const h = heatStops('humidity', 50, 70);
+    expect(colorAt(h, 50)[0]).toBeGreaterThan(200); // seco = vermelho
+    expect(colorAt(h, 70)[2]).toBeGreaterThan(200); // úmido = azul
+    const f = buildHeatZones([{ x: 2, y: 2, v: 20 }, { x: 10, y: 2, v: 30 }], 12, 5, 12, 5)!;
+    expect(Math.min(...f.values)).toBeGreaterThanOrEqual(20);
+    expect(Math.max(...f.values)).toBeLessThanOrEqual(30);
+  });
+});

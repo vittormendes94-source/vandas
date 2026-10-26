@@ -367,7 +367,7 @@ html.tv button, html.tv a { cursor: pointer; }
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: clamp(10px, 1.2vw, 28px);
-  padding: clamp(10px, 1.1vw, 24px) clamp(14px, 1.5vw, 34px);
+  padding: clamp(6px, 0.6vw, 14px) clamp(12px, 1.2vw, 28px);
   border-radius: var(--radius);
   background: var(--card);
   border: 1px solid var(--line);
@@ -378,8 +378,8 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__status--bad { border-left-color: var(--red); background: linear-gradient(90deg, rgba(255, 107, 107, 0.2), var(--card) 55%); }
 .tvp__status--setup { border-left-color: var(--cyan); background: linear-gradient(90deg, rgba(56, 214, 230, 0.1), var(--card) 55%); }
 .tvp__status-icon {
-  width: clamp(38px, 2.8vw, 70px);
-  height: clamp(38px, 2.8vw, 70px);
+  width: clamp(24px, 1.7vw, 44px);
+  height: clamp(24px, 1.7vw, 44px);
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -393,15 +393,16 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__status--bad .tvp__status-icon { background: var(--red); }
 .tvp__status--setup .tvp__status-icon { background: rgba(56, 214, 230, 0.16); color: var(--cyan); }
 .tvp__status-icon svg { width: 60%; height: 60%; }
-.tvp__headline { font-size: clamp(20px, 1.7vw, 44px); font-weight: 750; line-height: 1.1; }
-.tvp__details { display: flex; flex-wrap: wrap; gap: 0.2em 1.4em; color: var(--dim); margin-top: 0.25em; font-size: clamp(12px, 0.8vw, 20px); }
-.tvp__right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3em; text-align: right; }
+.tvp__headline { font-size: clamp(15px, 1.1vw, 28px); font-weight: 750; line-height: 1.1; }
+.tvp__details { display: flex; flex-wrap: wrap; gap: 0.2em 1.4em; color: var(--dim); margin-top: 0.1em; font-size: clamp(11px, 0.72vw, 18px); }
+.tvp__right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2em; text-align: right; }
+.tvp__right .btn { padding: 0.15em 0.6em; font-size: 0.78em; min-height: 0; }
 .tvp__clock { display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
-.tvp__time { font-size: clamp(26px, 2.2vw, 56px); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.tvp__date { color: var(--dim); font-size: clamp(12px, 0.85vw, 22px); margin-top: 0.3em; }
-.tvp__updated { color: var(--mute); font-size: clamp(12px, 0.8vw, 20px); }
+.tvp__time { font-size: clamp(18px, 1.35vw, 34px); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tvp__date { color: var(--dim); font-size: clamp(11px, 0.72vw, 18px); margin-top: 0.15em; }
+.tvp__updated { color: var(--mute); font-size: clamp(11px, 0.7vw, 18px); }
 
-.tvp__cols { display: grid; grid-template-columns: 1fr 1fr 0.55fr; gap: var(--tvp-pad); flex: 1; min-height: 0; }
+.tvp__cols { display: grid; grid-template-columns: 1fr 1fr 0.46fr; gap: var(--tvp-pad); flex: 1; min-height: 0; }
 .tvp__col {
   display: flex;
   flex-direction: column;
@@ -509,7 +510,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__pump--on .tvp__pump-icon { color: #8fd3ff; animation: tvp-pulse 1.8s ease-in-out infinite; }
 .tvp__pump--off .tvp__pump-icon { color: var(--dim); }
 .tvp__pump--unknown .tvp__pump-icon { color: var(--amber); }
-.tvp__pump-label { font-size: clamp(17px, 1.35vw, 36px); font-weight: 800; line-height: 1.05; }
+.tvp__pump-label { font-size: clamp(15px, 1.1vw, 30px); font-weight: 800; line-height: 1.05; }
 .tvp__pump--on .tvp__pump-label { color: #8fd3ff; }
 .tvp__pump--unknown .tvp__pump-label { color: var(--amber); }
 .tvp__pump--none .tvp__pump-label { font-size: clamp(15px, 1.05vw, 28px); color: var(--dim); }
@@ -535,9 +536,9 @@ html.tv button, html.tv a { cursor: pointer; }
 
 /* Lá fora agora (topo) */
 .tvp__out { display: flex; align-items: center; gap: 0.6em; padding: 0.35em 1.1em 0.35em 0.6em; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.04); }
-.tvp__out-icon { width: clamp(34px, 2.6vw, 66px); height: clamp(34px, 2.6vw, 66px); flex: none; }
+.tvp__out-icon { width: clamp(24px, 1.6vw, 42px); height: clamp(24px, 1.6vw, 42px); flex: none; }
 .tvp__out-values { display: flex; align-items: baseline; gap: 0.5em; line-height: 1; }
-.tvp__out-values b { font-size: clamp(22px, 1.8vw, 46px); font-weight: 750; font-variant-numeric: tabular-nums; }
+.tvp__out-values b { font-size: clamp(16px, 1.2vw, 30px); font-weight: 750; font-variant-numeric: tabular-nums; }
 .tvp__out-values span { font-size: clamp(15px, 1.15vw, 30px); color: var(--dim); font-weight: 600; }
 .tvp__out-label { color: var(--mute); font-size: clamp(12px, 0.8vw, 20px); margin-top: 0.25em; }
 
@@ -547,9 +548,16 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__legend-band { position: absolute; top: -3px; bottom: -3px; border: 2px solid rgba(255, 255, 255, 0.75); border-radius: 999px; }
 .tvp__legend-mark { position: absolute; top: 50%; width: clamp(9px, 0.7vw, 18px); height: clamp(9px, 0.7vw, 18px); transform: translate(-50%, -50%); border-radius: 50%; background: #fff; border: 2px solid #0a141a; }
 .tvp__legend-labels { position: relative; display: flex; justify-content: space-between; color: var(--mute); font-size: clamp(11px, 0.78vw, 20px); min-height: 1.3em; }
+.tvp__legend-ticks { position: relative; height: 1.3em; color: var(--dim); font-size: clamp(11px, 0.75vw, 19px); font-variant-numeric: tabular-nums; }
+.tvp__legend-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.tvp__legend-ticks span:first-child { transform: none; }
+.tvp__legend-ticks span:last-child { transform: translateX(-100%); }
 .tvp__legend-mid { position: absolute; top: 0; transform: translateX(-50%); color: var(--dim); font-weight: 600; white-space: nowrap; }
 .tvp__insight { color: var(--dim); font-size: clamp(13px, 0.92vw, 24px); }
 .tvp__insight b { color: var(--text); }
+.tvp__dim { position: absolute; padding: 0.05em 0.45em; border-radius: 6px; background: rgba(7, 13, 17, 0.55); color: rgba(255, 255, 255, 0.75); font-size: clamp(10px, 0.62vw, 16px); pointer-events: none; }
+.tvp__dim--w { left: 50%; bottom: 3px; transform: translateX(-50%); }
+.tvp__dim--h { right: 3px; top: 50%; transform: translateY(-50%); }
 .tvp__map-flag--on { bottom: auto; top: 6%; color: #8fd3ff; }
 
 /* Pode irrigar agora? */
