@@ -106,6 +106,10 @@ export const api = {
     request<IrrigationsResponse>(`/api/irrigations?from=${encodeURIComponent(new Date(from).toISOString())}&to=${encodeURIComponent(new Date(to).toISOString())}`, { signal }),
   automationLog: (from: number, to: number, signal?: AbortSignal) =>
     request<{ entries: AutomationLogEntryDto[] }>(`/api/automation/log?from=${encodeURIComponent(new Date(from).toISOString())}&to=${encodeURIComponent(new Date(to).toISOString())}`, { signal }),
+  pushKey: () => request<{ publicKey: string }>('/api/push/key'),
+  pushSubscribe: (sub: PushSubscriptionJSON) => request<{ ok: boolean }>('/api/push/subscribe', { method: 'POST', body: sub }),
+  pushUnsubscribe: (endpoint: string) => request<{ ok: boolean }>('/api/push/unsubscribe', { method: 'POST', body: { endpoint } }),
+  pushTest: (endpoint: string) => request<{ sent: number }>('/api/push/test', { method: 'POST', body: { endpoint } }),
   weather: (signal?: AbortSignal) => request<WeatherResponse>('/api/weather', { signal }),
   geocode: (q: string) => request<{ places: GeoPlace[] }>(`/api/geocode?q=${encodeURIComponent(q)}`, { admin: true }),
   saveConfig: (config: AppConfig) => request<AppConfig>('/api/config', { method: 'PUT', body: config, admin: true }),

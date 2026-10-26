@@ -21,6 +21,7 @@ import {
 } from '@orq/core';
 import type { AppConfig, AutomationStatusDto, IrrigationAdvice, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, SimpleStatus, Snapshot, Trend, ValueTone } from '@orq/core';
 import { SmartMap } from '../components/SmartMap';
+import { PushToggle } from '../components/PushToggle';
 import { Forecast, OutdoorNow, useWeather } from '../components/Weather';
 import { useHistory } from '../hooks/useHistory';
 import type { LiveState } from '../hooks/useLive';
@@ -37,11 +38,23 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
   const anchor = Math.floor(nowMs / (5 * MIN)) * 5 * MIN;
   const range = useMemo(() => (anchor > 0 ? { from: anchor - 24 * HOUR, to: anchor } : null), [anchor]);
   const hist = useHistory(range);
+  // Se já há medições de mais de 24 h, o gráfico usa as médias por hora de até 7 dias (mais leve e suave).
+  const rawFirst = hist.data?.series.reduce((m, se) => Math.min(m, (se.rows[0]?.[0] as number | undefined) ?? Infinity), Infinity) ?? Infinity;
+  const longRange = useMemo(() => (range && rawFirst < range.from + HOUR ? { from: range.to - 7 * 24 * HOUR, to: range.to } : null), [range, rawFirst]);
+  const histLong = useHistory(longRange);
   const weather = useWeather();
   const sensorIds = useMemo(() => config?.sensors.map((s) => s.id) ?? [], [config]);
-  const buckets = useMemo(() => (hist.data ? bucketsFromHistory(hist.data) : []), [hist.data]);
-  const tLine = useMemo(() => meanAcrossSensors(buckets, 'temperature', sensorIds, 15 * MIN), [buckets, sensorIds]);
-  const hLine = useMemo(() => meanAcrossSensors(buckets, 'humidity', sensorIds, 15 * MIN), [buckets, sensorIds]);
+  const longFirst = histLong.data?.series.reduce((m, se) => Math.min(m, (se.rows[0]?.[0] as number | undefined) ?? Infinity), Infinity) ?? Infinity;
+  // Só usa os 7 dias se as médias por hora realmente cobrem mais que as últimas 24 h.
+  const useLong = !!longRange && !!histLong.data && longFirst < longRange.to - 26 * HOUR;
+  const buckets = useMemo(() => {
+    const h = useLong ? histLong.data : hist.data;
+    return h ? bucketsFromHistory(h) : [];
+  }, [useLong, histLong.data, hist.data]);
+  const bin = useLong ? HOUR : 15 * MIN;
+  const tLine = useMemo(() => meanAcrossSensors(buckets, 'temperature', sensorIds, bin), [buckets, sensorIds, bin]);
+  const hLine = useMemo(() => meanAcrossSensors(buckets, 'humidity', sensorIds, bin), [buckets, sensorIds, bin]);
+  const chartFrom = useLong ? longRange!.from : (range?.from ?? 0);
   const today = useMemo(() => {
     if (!hist.data || hist.data.resolution !== 'raw') return null;
     const start = startOfLocalDay(nowMs);
@@ -110,6 +123,7 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
         <div className="tvp__right">
           <Clock nowMs={nowMs} />
           <div className="tvp__updated">{snap.lastMeasuredAt ? `Última leitura ${formatAge(nowMs - snap.lastMeasuredAt)}` : 'Sem leituras ainda'}</div>
+          <PushToggle />
           <button type="button" className="btn btn--sm hide-tv" onClick={onFull}>
             Painel completo
           </button>
@@ -123,7 +137,8 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
           snap={snap}
           config={config}
           line={tLine}
-          from={range?.from ?? 0}
+          from={chartFrom}
+          longChart={useLong}
           to={range?.to ?? 0}
           nowMs={nowMs}
           today={today && today.tMin !== null ? [today.tMin, today.tMax!] : null}
@@ -134,7 +149,8 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
           snap={snap}
           config={config}
           line={hLine}
-          from={range?.from ?? 0}
+          from={chartFrom}
+          longChart={useLong}
           to={range?.to ?? 0}
           nowMs={nowMs}
           today={today && today.hMin !== null ? [today.hMin, today.hMax!] : null}
@@ -163,6 +179,7 @@ function QuantityColumn(p: {
   nowMs: number;
   today: [number, number] | null;
   pumpOn?: boolean;
+  longChart?: boolean;
 }) {
   const u = UNIT[p.quantity];
   const stats = p.quantity === 'temperature' ? p.snap.temperature : p.snap.humidity;
@@ -175,7 +192,8 @@ function QuantityColumn(p: {
   // Período do gráfico se adapta às medições: do primeiro ponto até agora, entre 1 h e 24 h.
   const first = p.line.length ? p.line[0]!.t : p.to;
   const sparkFrom = Math.max(p.from, Math.min(first, p.to - HOUR));
-  const sparkHours = Math.max(1, Math.round((p.to - sparkFrom) / HOUR));
+  const spanH = (p.to - sparkFrom) / HOUR;
+  const sparkLabel = spanH > 36 ? `${Math.round(spanH / 24)} dias` : `${Math.max(1, Math.round(spanH))} h`;
   return (
     <section className={`tvp__col tvp__col--${p.quantity}`} aria-label={p.title}>
       <SmartMap
@@ -212,14 +230,14 @@ function QuantityColumn(p: {
         </div>
       ) : (
         <div className="tvp__spark-box">
-          <Spark points={p.line.filter((x) => x.t >= sparkFrom)} from={sparkFrom} to={p.to} color={p.quantity === 'temperature' ? '#ff9f43' : '#38b6ff'} suffix={u.suffix} digits={u.digits} />
+          <Spark points={p.line.filter((x) => x.t >= sparkFrom)} from={sparkFrom} to={p.to} color={p.quantity === 'temperature' ? '#ff9f43' : '#38b6ff'} suffix={u.suffix} digits={u.digits} gapMs={p.longChart ? 3 * HOUR : 45 * MIN} />
           <div className="tvp__spark-axis" aria-hidden="true">
-            <span>{formatTime(sparkFrom)}</span>
-            <span>{formatTime((sparkFrom + p.to) / 2)}</span>
+            <span>{spanH > 36 ? new Date(sparkFrom).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : formatTime(sparkFrom)}</span>
+            <span>{spanH > 36 ? new Date((sparkFrom + p.to) / 2).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : formatTime((sparkFrom + p.to) / 2)}</span>
             <span>agora →</span>
           </div>
           <div className="tvp__spark-label">
-            <span>Média dos sensores · últimas {sparkHours} h</span>
+            <span>Média dos sensores · últimas {sparkLabel}</span>
             {p.today && (
               <span>
                 Hoje: mín <b>{fmtNum(p.today[0], u.digits)}{u.suffix}</b> · máx <b>{fmtNum(p.today[1], u.digits)}{u.suffix}</b>
@@ -398,7 +416,7 @@ function AdviceCard({ advice }: { advice: IrrigationAdvice }) {
  * Tendência: reta de mínimos quadrados sobre as últimas 3 h; projeção: essa reta estendida por até 2 h,
  * tracejada. É uma extrapolação simples (não considera sol, chuva ou irrigação).
  */
-function Spark({ points, from, to, color, suffix, digits }: { points: MeanPoint[]; from: number; to: number; color: string; suffix: string; digits: number }) {
+function Spark({ points, from, to, color, suffix, digits, gapMs = 45 * MIN }: { points: MeanPoint[]; from: number; to: number; color: string; suffix: string; digits: number; gapMs?: number }) {
   if (points.length < 2 || to <= from) return <div className="tvp__spark tvp__spark--empty">sem dados ainda</div>;
   // média móvel de 3 pontos
   const sm = points.map((p, i) => {
@@ -434,7 +452,7 @@ function Spark({ points, from, to, color, suffix, digits }: { points: MeanPoint[
   // curva suave (Catmull-Rom → Bézier), quebrando em lacunas > 45 min
   let d = '';
   sm.forEach((p, i) => {
-    const gap = i > 0 && p.t - sm[i - 1]!.t > 45 * MIN;
+    const gap = i > 0 && p.t - sm[i - 1]!.t > gapMs;
     if (i === 0 || gap) {
       d += `M${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)} `;
       return;

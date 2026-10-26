@@ -24,6 +24,7 @@ import { listIrrigations, pumpStatusOf, recentIrrigations, trackPumpFromDb } fro
 import { pollSwitchbot, switchbotStatusDto } from './switchbot';
 import { geocode, weatherFor } from './weather';
 import { automationLog, automationStatusDto } from './automation';
+import { deleteSubscription, getVapid, saveSubscription, sendToAll } from './push';
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -212,6 +213,24 @@ app.get('/api/automation/log', requireView, async (c) => {
   const to = parseInstant(c.req.query('to'), 'to');
   if (to <= from || to - from > 400 * 86_400_000) throw new HttpError(400, 'invalid_range', 'Intervalo inválido (máx. 400 dias).');
   return c.json({ entries: await automationLog(c.env.DB, from, to, 2000) });
+});
+
+/* Notificações no celular (Web Push). Quem pode ver o painel pode receber avisos. */
+app.get('/api/push/key', requireView, async (c) => c.json({ publicKey: (await getVapid(c.env.DB, Date.now())).publicKey }));
+app.post('/api/push/subscribe', requireView, async (c) => {
+  const b = (await readJson(c)) as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+  await saveSubscription(c.env.DB, { endpoint: String(b.endpoint ?? ''), p256dh: String(b.keys?.p256dh ?? ''), auth: String(b.keys?.auth ?? '') }, Date.now());
+  return c.json({ ok: true });
+});
+app.post('/api/push/unsubscribe', requireView, async (c) => {
+  const b = (await readJson(c)) as { endpoint?: string };
+  await deleteSubscription(c.env.DB, String(b.endpoint ?? ''));
+  return c.json({ ok: true });
+});
+app.post('/api/push/test', requireView, async (c) => {
+  const b = (await readJson(c)) as { endpoint?: string };
+  const sent = await sendToAll(c.env.DB, c.env, { title: 'Orquidário Inteligente', body: 'Avisos ativados neste aparelho. ✅', tag: 'teste' }, Date.now(), String(b.endpoint ?? ''));
+  return c.json({ sent });
 });
 
 app.post('/api/ewelink/disconnect', requireAdmin, async (c) => {

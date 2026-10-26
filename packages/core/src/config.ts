@@ -134,7 +134,7 @@ export function defaultConfig(): AppConfig {
     automation: { ...DEFAULT_AUTOMATION, schedule: [] },
     // Cidade informada pelo dono (Patrocínio, MG). Pode ser trocada em Configurações.
     location: { name: 'Patrocínio, Minas Gerais', lat: -18.9439, lon: -46.9925 },
-    retention: { rawDays: 45 },
+    retention: { rawDays: 30 },
   };
 }
 

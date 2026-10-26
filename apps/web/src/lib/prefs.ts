@@ -5,7 +5,7 @@ export interface Prefs {
   pollSeconds: number;
 }
 
-const DEFAULTS: Prefs = { pollSeconds: 60 };
+const DEFAULTS: Prefs = { pollSeconds: 120 };
 
 export function loadPrefs(): Prefs {
   try {
