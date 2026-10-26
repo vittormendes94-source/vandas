@@ -18,7 +18,7 @@ import {
   trendOf,
   valueTone,
 } from '@orq/core';
-import type { AppConfig, IrrigationsSummary, MeanPoint, Quantity, Reading, Snapshot, Trend, ValueTone } from '@orq/core';
+import type { AppConfig, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, Snapshot, Trend, ValueTone } from '@orq/core';
 import { useFieldCanvas } from '../components/EnvMap';
 import { useHistory } from '../hooks/useHistory';
 import type { LiveState } from '../hooks/useLive';
@@ -54,13 +54,12 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
   const snap = buildSnapshot(config, latest, nowMs);
   const status = simpleStatus(snap, config, nowMs);
   const pump = simplePump(data.pump, nowMs);
-  const statusIcon = { ok: '✓', warn: '!', bad: '✕', setup: '…' }[status.level];
 
   return (
     <main className="tvp">
       <header className={`tvp__status tvp__status--${status.level}`} role="status">
         <div className="tvp__status-icon" aria-hidden="true">
-          {statusIcon}
+          <StatusIcon level={status.level} />
         </div>
         <div className="tvp__status-text">
           <div className="tvp__headline">{status.headline}</div>
@@ -133,15 +132,25 @@ function QuantityColumn(p: {
   const tone = valueTone(mean, limits);
   const trend = trendOf(p.line, u.threshold, p.nowMs);
   const fresh = p.snap.counts.fresh;
+  const never = p.snap.lastMeasuredAt === null;
   return (
     <section className={`tvp__col tvp__col--${p.quantity}`} aria-label={p.title}>
       <div className="tvp__col-head">
-        <div className="tvp__label">{p.title}</div>
-        <div className="tvp__value-row">
-          <span className={`tvp__value tone-${p.quantity}-${tone}`}>{mean === null ? '—' : `${fmtNum(mean, u.digits)}${u.suffix}`}</span>
-          <TrendBadge trend={trend} quantity={p.quantity} />
+        <div className="tvp__label">
+          {p.quantity === 'temperature' ? <ThermoIcon /> : <DropIcon />}
+          {p.title}
         </div>
-        <div className="tvp__word">{toneWord(p.quantity, tone, fresh)}</div>
+        {mean === null ? (
+          <div className="tvp__value-row">
+            <span className={`tvp__value tvp__value--empty${never ? '' : ' tvp__value--lost'}`}>{p.quantity === 'temperature' ? '--,-°' : '--%'}</span>
+          </div>
+        ) : (
+          <div className="tvp__value-row">
+            <span className={`tvp__value tone-${p.quantity}-${tone}`}>{`${fmtNum(mean, u.digits)}${u.suffix}`}</span>
+            <TrendBadge trend={trend} quantity={p.quantity} />
+          </div>
+        )}
+        <div className="tvp__word">{mean === null ? (never ? 'Aguardando a primeira leitura' : `Sem sinal · última leitura ${formatAge(p.nowMs - p.snap.lastMeasuredAt!)}`) : toneWord(p.quantity, tone, fresh)}</div>
       </div>
       <TvMap quantity={p.quantity} snapshot={p.snap} config={p.config} showSprinklers={p.quantity === 'humidity'} pumpOn={p.pumpOn ?? false} />
       <div className="tvp__scale">
@@ -149,22 +158,28 @@ function QuantityColumn(p: {
         <i style={{ background: rampGradientCss(p.quantity) }} />
         <span>{fmtNum(p.config.scales[p.quantity].max, 0)}{u.suffix}</span>
       </div>
-      <div className="tvp__spark-box">
-        <Spark points={p.line} from={p.from} to={p.to} color={p.quantity === 'temperature' ? 'var(--tvp-temp)' : 'var(--tvp-hum)'} />
-        <div className="tvp__spark-axis" aria-hidden="true">
-          <span>{p.from ? formatTime(p.from) : ''} ontem</span>
-          <span>{p.from ? formatTime(p.from + 12 * HOUR) : ''}</span>
-          <span>agora</span>
+      {p.line.length < 2 ? (
+        <div className="tvp__spark-box tvp__spark-box--empty">
+          <span>O gráfico das últimas 24 horas aparece aqui depois das primeiras leituras.</span>
         </div>
-        <div className="tvp__spark-label">
-          <span>Média dos sensores · últimas 24 h</span>
-          {p.today && (
-            <span>
-              Hoje: mín <b>{fmtNum(p.today[0], u.digits)}{u.suffix}</b> · máx <b>{fmtNum(p.today[1], u.digits)}{u.suffix}</b>
-            </span>
-          )}
+      ) : (
+        <div className="tvp__spark-box">
+          <Spark points={p.line} from={p.from} to={p.to} color={p.quantity === 'temperature' ? 'var(--tvp-temp)' : 'var(--tvp-hum)'} />
+          <div className="tvp__spark-axis" aria-hidden="true">
+            <span>{formatTime(p.from)} ontem</span>
+            <span>{formatTime(p.from + 12 * HOUR)}</span>
+            <span>agora</span>
+          </div>
+          <div className="tvp__spark-label">
+            <span>Média dos sensores · últimas 24 h</span>
+            {p.today && (
+              <span>
+                Hoje: mín <b>{fmtNum(p.today[0], u.digits)}{u.suffix}</b> · máx <b>{fmtNum(p.today[1], u.digits)}{u.suffix}</b>
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
@@ -194,7 +209,7 @@ function toneWord(kind: Quantity, tone: ValueTone, fresh: number): string {
 
 /** Mapa limpo para a TV: cor estimada entre os sensores, valores nos pontos e (umidade) os aspersores por cima. */
 function TvMap({ quantity, snapshot, config, showSprinklers, pumpOn }: { quantity: Quantity; snapshot: Snapshot; config: AppConfig; showSprinklers: boolean; pumpOn: boolean }) {
-  const { stageRef, canvasRef, coverage } = useFieldCanvas(quantity, snapshot, config, { hatch: false, grid: false });
+  const { stageRef, canvasRef, coverage } = useFieldCanvas(quantity, snapshot, config, { hatch: false, grid: false, transparent: true });
   const u = UNIT[quantity];
   return (
     <div className="tvp__map" ref={stageRef}>
@@ -211,18 +226,19 @@ function TvMap({ quantity, snapshot, config, showSprinklers, pumpOn }: { quantit
       )}
       {snapshot.sensors.map((s) => {
         const v = quantity === 'temperature' ? s.reading?.temperatureC : s.reading?.humidityPct;
+        const state = s.valid && v !== undefined ? 'ok' : s.ageMs === null ? 'wait' : 'lost';
         return (
           <div
             key={s.sensor.id}
-            className={`tvp__pin${s.valid ? '' : ' tvp__pin--off'}`}
+            className={`tvp__pin tvp__pin--${state}`}
             style={{ left: `${(s.sensor.xM / ROOM.lengthM) * 100}%`, top: `${(s.sensor.yM / ROOM.widthM) * 100}%` }}
-            title={s.sensor.name}
           >
-            {s.valid && v !== undefined ? `${fmtNum(v, u.digits)}${u.suffix}` : 'sem sinal'}
+            <b>{state === 'ok' ? `${fmtNum(v!, u.digits)}${u.suffix}` : state === 'wait' ? 'aguardando' : 'sem sinal'}</b>
+            <small>{s.sensor.name}</small>
           </div>
         );
       })}
-      {coverage.state !== 'ok' && <div className="tvp__map-flag">{snapshot.counts.fresh === 0 ? 'Aguardando sensores' : 'Poucos sensores para colorir o mapa'}</div>}
+      {snapshot.counts.fresh > 0 && coverage.state !== 'ok' && <div className="tvp__map-flag">Poucos sensores para colorir o mapa</div>}
     </div>
   );
 }
@@ -231,7 +247,10 @@ function IrrigationColumn({ pump, summary, nowMs }: { pump: ReturnType<typeof si
   const dayStart = startOfLocalDay(nowMs);
   return (
     <section className="tvp__col tvp__col--irr" aria-label="Irrigação">
-      <div className="tvp__label">Irrigação</div>
+      <div className="tvp__label">
+        <SprinklerIcon />
+        Irrigação
+      </div>
       <div className={`tvp__pump tvp__pump--${pump.tone}`}>
         <svg className="tvp__pump-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 2.5c-3.6 4.6-6.5 8.3-6.5 11.6A6.5 6.5 0 0 0 12 20.6a6.5 6.5 0 0 0 6.5-6.5C18.5 10.8 15.6 7.1 12 2.5z" fill="currentColor" />
@@ -242,38 +261,51 @@ function IrrigationColumn({ pump, summary, nowMs }: { pump: ReturnType<typeof si
         </div>
       </div>
 
-      <div className="tvp__today">
-        <div>
-          <div className="tvp__today-n">{summary.todayCount}</div>
-          <div className="tvp__small">irrigaç{summary.todayCount === 1 ? 'ão' : 'ões'} hoje</div>
+      {pump.tone === 'none' && summary.last.length === 0 ? (
+        <div className="tvp__soon">
+          <div className="tvp__list-title">Quando a bomba for conectada, aparece aqui</div>
+          <ul>
+            <li>se a bomba está ligada agora</li>
+            <li>quantas vezes irrigou hoje e por quanto tempo</li>
+            <li>horário e duração das últimas irrigações</li>
+          </ul>
         </div>
-        <div>
-          <div className="tvp__today-n">{summary.todayCount ? formatIrrigationDuration(summary.todayTotalMs) : '—'}</div>
-          <div className="tvp__small">tempo total hoje</div>
-        </div>
-      </div>
-
-      <div className="tvp__list-title">Últimas irrigações</div>
-      {summary.last.length === 0 ? (
-        <div className="tvp__empty">{pump.tone === 'none' ? 'A bomba ainda não está conectada ao painel.' : 'Nenhuma irrigação registrada ainda.'}</div>
       ) : (
-        <ol className="tvp__list">
-          {summary.last.map((e) => {
-            const start = Date.parse(e.startedAt);
-            const running = e.endedAt === null;
-            return (
-              <li key={e.startedAt} className={running ? 'tvp__list-running' : undefined}>
-                <span className="tvp__list-when">
-                  {start >= dayStart ? formatTime(start) : `${new Date(start).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })} ${formatTime(start)}`}
-                </span>
-                <span className="tvp__list-dur">{running ? `ligada há ${formatIrrigationDuration(nowMs - start)}` : formatIrrigationDuration(e.durationMs)}</span>
-                {e.endReason === 'sem_sinal' && <span className="tvp__list-note">sem sinal no fim</span>}
-              </li>
-            );
-          })}
-        </ol>
+        <>
+          <div className="tvp__today">
+            <div>
+              <div className="tvp__today-n">{summary.todayCount}</div>
+              <div className="tvp__small">irrigaç{summary.todayCount === 1 ? 'ão' : 'ões'} hoje</div>
+            </div>
+            <div>
+              <div className="tvp__today-n">{summary.todayCount ? formatIrrigationDuration(summary.todayTotalMs) : '0 min'}</div>
+              <div className="tvp__small">tempo total hoje</div>
+            </div>
+          </div>
+
+          <div className="tvp__list-title">Últimas irrigações</div>
+          {summary.last.length === 0 ? (
+            <div className="tvp__empty">Nenhuma irrigação registrada ainda.</div>
+          ) : (
+            <ol className="tvp__list">
+              {summary.last.map((e) => {
+                const start = Date.parse(e.startedAt);
+                const running = e.endedAt === null;
+                return (
+                  <li key={e.startedAt} className={running ? 'tvp__list-running' : undefined}>
+                    <span className="tvp__list-when">
+                      {start >= dayStart ? formatTime(start) : `${new Date(start).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })} ${formatTime(start)}`}
+                    </span>
+                    <span className="tvp__list-dur">{running ? `ligada há ${formatIrrigationDuration(nowMs - start)}` : formatIrrigationDuration(e.durationMs)}</span>
+                    {e.endReason === 'sem_sinal' && <span className="tvp__list-note">sem sinal no fim</span>}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          <div className="tvp__footnote">Horários com precisão de ~2 min.</div>
+        </>
       )}
-      <div className="tvp__footnote">Horários com precisão de ~2 min.</div>
     </section>
   );
 }
@@ -320,5 +352,36 @@ function Clock({ nowMs }: { nowMs: number }) {
     </div>
   );
 }
+
+function StatusIcon({ level }: { level: SimpleLevel }) {
+  const d = {
+    ok: 'M5 12.5l4.5 4.5L19 7.5',
+    warn: 'M12 6v8M12 18.2v.1',
+    bad: 'M7 7l10 10M17 7L7 17',
+    setup: 'M12 7.5V12l3 2M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17z',
+  }[level];
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
+  );
+}
+
+const ThermoIcon = () => (
+  <svg className="tvp__label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <path d="M10 4.5a2 2 0 0 1 4 0v9.3a4 4 0 1 1-4 0z" />
+    <path d="M12 9v7" />
+  </svg>
+);
+const DropIcon = () => (
+  <svg className="tvp__label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3.5c-3.3 4.2-6 7.6-6 10.6a6 6 0 0 0 12 0c0-3-2.7-6.4-6-10.6z" />
+  </svg>
+);
+const SprinklerIcon = () => (
+  <svg className="tvp__label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <path d="M12 21v-7M9 14h6M12 10V8M7.5 9.5 6 8M16.5 9.5 18 8M5 13H3M21 13h-2" />
+  </svg>
+);
 
 const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
