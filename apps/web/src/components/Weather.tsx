@@ -111,6 +111,7 @@ export function OutdoorNow({ w }: { w: WeatherResponse | null }) {
         </div>
         <div className="tvp__out-label">
           Lá fora · {k.label}
+          {c.directRadiationWm2 !== null && c.isDay ? ` · sol ${fmtNum(c.directRadiationWm2, 0)} W/m²` : ''}
           {w.stale ? ' · desatualizado' : ''}
         </div>
       </div>

@@ -24,7 +24,8 @@ export function openMeteoForecastUrl(lat: number, lon: number): string {
   const q = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
-    current: 'temperature_2m,relative_humidity_2m,precipitation,weather_code,is_day',
+    current: 'temperature_2m,relative_humidity_2m,precipitation,weather_code,is_day,direct_radiation',
+    hourly: 'temperature_2m,direct_radiation,precipitation_probability',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max',
     timezone: WEATHER_TZ,
     forecast_days: '7',
@@ -48,6 +49,15 @@ export interface WeatherDay {
   rainProb: number | null;
 }
 
+export interface WeatherHour {
+  /** Horário local (AAAA-MM-DDTHH:MM, São Paulo). */
+  time: string;
+  temperatureC: number | null;
+  /** Radiação solar direta (W/m², média da hora anterior). */
+  directRadiationWm2: number | null;
+  rainProb: number | null;
+}
+
 export interface WeatherNow {
   /** Horário local da condição (AAAA-MM-DDTHH:MM, São Paulo). */
   time: string;
@@ -56,11 +66,15 @@ export interface WeatherNow {
   precipitationMm: number;
   code: number;
   isDay: boolean;
+  /** Radiação solar direta estimada para a cidade (W/m²). null = não informada. */
+  directRadiationWm2: number | null;
 }
 
 export interface WeatherData {
   current: WeatherNow;
   days: WeatherDay[];
+  /** Previsão hora a hora (pode faltar em dados guardados por versões anteriores). */
+  hours?: WeatherHour[];
 }
 
 export interface WeatherResponse {
@@ -84,7 +98,16 @@ const ForecastSchema = z.object({
     precipitation: num.nullable().optional(),
     weather_code: num,
     is_day: num.nullable().optional(),
+    direct_radiation: num.nullable().optional(),
   }),
+  hourly: z
+    .object({
+      time: z.array(z.string()),
+      temperature_2m: nullableNums.optional(),
+      direct_radiation: nullableNums.optional(),
+      precipitation_probability: nullableNums.optional(),
+    })
+    .optional(),
   daily: z.object({
     time: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
     weather_code: nullableNums,
@@ -115,8 +138,15 @@ export function parseOpenMeteoForecast(json: unknown): WeatherData {
       precipitationMm: f.current.precipitation ?? 0,
       code: f.current.weather_code,
       isDay: f.current.is_day !== 0,
+      directRadiationWm2: f.current.direct_radiation ?? null,
     },
     days,
+    hours: (f.hourly?.time ?? []).map((time, i) => ({
+      time,
+      temperatureC: f.hourly?.temperature_2m?.[i] ?? null,
+      directRadiationWm2: f.hourly?.direct_radiation?.[i] ?? null,
+      rainProb: f.hourly?.precipitation_probability?.[i] ?? null,
+    })),
   };
 }
 
@@ -174,6 +204,16 @@ export function weatherDayLabel(date: string, todayDate: string): string {
   const diff = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
   if (diff === 1) return 'Amanhã';
   return WEEKDAYS[new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay()]!;
+}
+
+/** Horário local de São Paulo no formato do Open-Meteo (AAAA-MM-DDTHH:MM). */
+export function localDateTimeString(ms: number): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: WEATHER_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(ms)
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
 
 /** Data de hoje (AAAA-MM-DD) em São Paulo. */

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ROOM } from './types';
 import { PlaceSchema } from './weather';
+import { DEFAULT_IRRIGATION_RULES, IrrigationRulesSchema } from './rules';
 import type { AppConfig } from './types';
 
 const id = z.string().regex(/^[a-z0-9_-]{1,32}$/, 'Use 1–32 caracteres: a–z, 0–9, "_" ou "-".');
@@ -59,6 +60,8 @@ export const AppConfigSchema = z
       /** Duração esperada de uma irrigação; acima disso (mais a margem de leitura) o painel avisa. */
       maxRunMin: z.number().int().min(1).max(180).default(5),
     }),
+    /** Quando NÃO irrigar (o painel avisa; não comanda a bomba). */
+    irrigationRules: IrrigationRulesSchema.default(DEFAULT_IRRIGATION_RULES),
     /** Cidade do orquidário, para o clima de fora (Open-Meteo). null = não informada. */
     location: PlaceSchema.nullable().default({ name: 'Patrocínio, Minas Gerais', lat: -18.9439, lon: -46.9925 }),
     retention: z.strictObject({ rawDays: z.number().int().min(7).max(90) }),
@@ -124,6 +127,7 @@ export function defaultConfig(): AppConfig {
       layoutProvisional: true,
     },
     pump: { deviceId: null, outlet: 0, maxRunMin: 5 },
+    irrigationRules: { ...DEFAULT_IRRIGATION_RULES },
     // Cidade informada pelo dono (Patrocínio, MG). Pode ser trocada em Configurações.
     location: { name: 'Patrocínio, Minas Gerais', lat: -18.9439, lon: -46.9925 },
     retention: { rawDays: 45 },

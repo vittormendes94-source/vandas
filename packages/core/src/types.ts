@@ -104,6 +104,8 @@ export interface AppConfig {
     /** Duração esperada de uma irrigação (min). Acima disso o painel avisa que a bomba pode ter ficado ligada. */
     maxRunMin: number;
   };
+  /** Quando NÃO irrigar: estufa quente, sol direto forte, período a evitar. O painel avisa; não comanda a bomba. */
+  irrigationRules: { maxTempC: number | null; maxSunWm2: number | null; avoidFrom: string | null; avoidTo: string | null };
   /** Cidade do orquidário (clima de fora). null = não informada. */
   location: { name: string; lat: number; lon: number } | null;
   retention: {

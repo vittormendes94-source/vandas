@@ -274,6 +274,46 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         </div>
       </Section>
 
+      <Section
+        title="Regras de irrigação"
+        sub="Quando NÃO irrigar. A TV mostra “Pode irrigar agora?” e avisa em vermelho se a bomba ligar fora destas regras. O painel não liga nem desliga a bomba. Deixe em branco para desativar uma regra."
+      >
+        <div className="form-grid">
+          <Num
+            label="Não irrigar com a estufa acima de"
+            unit="°C"
+            nullable
+            step={0.5}
+            min={0}
+            max={60}
+            value={draft.irrigationRules.maxTempC}
+            onChange={(v) => set((d) => void (d.irrigationRules.maxTempC = v))}
+            hint="Usa o ponto mais quente entre os sensores da estufa."
+          />
+          <Num
+            label="Não irrigar com sol direto acima de"
+            unit="W/m²"
+            nullable
+            step={50}
+            min={0}
+            max={1400}
+            value={draft.irrigationRules.maxSunWm2}
+            onChange={(v) => set((d) => void (d.irrigationRules.maxSunWm2 = v))}
+            hint="Estimativa para a cidade (Open-Meteo). Referência: céu limpo ao meio-dia 700–900; manhã cedo/fim de tarde abaixo de 300; nublado abaixo de 150."
+          />
+          <label className="field">
+            <span>Período a evitar · início</span>
+            <input className="input" type="time" value={draft.irrigationRules.avoidFrom ?? ''} onChange={(e) => set((d) => void (d.irrigationRules.avoidFrom = e.target.value || null))} />
+            <small>Opcional. Ex.: 10:00</small>
+          </label>
+          <label className="field">
+            <span>Período a evitar · fim</span>
+            <input className="input" type="time" value={draft.irrigationRules.avoidTo ?? ''} onChange={(e) => set((d) => void (d.irrigationRules.avoidTo = e.target.value || null))} />
+            <small>Opcional. Ex.: 16:00</small>
+          </label>
+        </div>
+      </Section>
+
       <LocationSection value={draft.location} onChange={(v) => set((d) => void (d.location = v))} />
 
       <Section title="Frescor dos dados e replay" sub="O sistema lê a nuvem SwitchBot a cada 2 min e só grava quando o valor muda. A SwitchBot atualiza a nuvem a cada 2 a 30 min, conforme a variação. Com o padrão (atrasado após 60 min, sem comunicação após 180 min), um sensor parado é sinalizado. Ajuste depois de observar a frequência real.">

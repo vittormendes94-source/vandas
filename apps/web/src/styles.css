@@ -520,11 +520,11 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__soon li::before { content: '•'; color: var(--cyan); margin-right: 0.5em; }
 .tvp__small { color: var(--mute); font-size: clamp(12px, 0.85vw, 22px); }
 .tvp__today { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8em; }
-.tvp__today > div { padding: 0.6em 0.8em; border-radius: var(--radius-sm); background: var(--card-2); }
-.tvp__today-n { font-size: clamp(22px, 2vw, 52px); font-weight: 800; font-variant-numeric: tabular-nums; }
+.tvp__today > div { padding: 0.4em 0.8em; border-radius: var(--radius-sm); background: var(--card-2); }
+.tvp__today-n { font-size: clamp(20px, 1.6vw, 44px); font-weight: 800; font-variant-numeric: tabular-nums; }
 .tvp__list-title { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--dim); font-size: clamp(12px, 0.85vw, 22px); margin-top: 0.3em; }
 .tvp__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35em; }
-.tvp__list li { display: flex; align-items: baseline; gap: 0.8em; flex-wrap: wrap; padding: 0.45em 0.7em; border-radius: var(--radius-sm); background: var(--card-2); font-size: clamp(15px, 1.15vw, 30px); }
+.tvp__list li { display: flex; align-items: baseline; gap: 0.8em; flex-wrap: wrap; padding: 0.35em 0.7em; border-radius: var(--radius-sm); background: var(--card-2); font-size: clamp(15px, 1.15vw, 30px); }
 .tvp__list-when { font-weight: 700; font-variant-numeric: tabular-nums; }
 .tvp__list-dur { color: var(--dim); margin-left: auto; }
 .tvp__list-running { outline: 2px solid #8fd3ff; }
@@ -551,6 +551,20 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__insight { color: var(--dim); font-size: clamp(13px, 0.92vw, 24px); }
 .tvp__insight b { color: var(--text); }
 .tvp__map-flag--on { bottom: auto; top: 6%; color: #8fd3ff; }
+
+/* Pode irrigar agora? */
+.tvp__advice { display: flex; align-items: center; gap: 0.7em; padding: clamp(8px, 0.8vw, 18px) clamp(10px, 1vw, 24px); border-radius: var(--radius-sm); background: var(--card-2); border-left: 5px solid var(--mute); }
+.tvp__advice-icon { width: clamp(30px, 2.4vw, 60px); height: clamp(30px, 2.4vw, 60px); flex: none; padding: 0.35em; border-radius: 50%; }
+.tvp__advice-title { font-size: clamp(17px, 1.35vw, 34px); font-weight: 750; line-height: 1.1; }
+.tvp__advice-detail { color: var(--dim); font-size: clamp(12px, 0.85vw, 22px); margin-top: 0.15em; }
+.tvp__advice-next { font-weight: 700; font-size: clamp(13px, 0.92vw, 23px); margin-top: 0.2em; color: var(--text); }
+.tvp__advice--ok { border-left-color: var(--green); }
+.tvp__advice--ok .tvp__advice-icon { color: var(--bg); background: var(--green); }
+.tvp__advice--ok .tvp__advice-title { color: var(--green); }
+.tvp__advice--no { border-left-color: var(--red); background: linear-gradient(90deg, rgba(255, 107, 107, 0.16), var(--card-2)); }
+.tvp__advice--no .tvp__advice-icon { color: var(--bg); background: var(--red); }
+.tvp__advice--no .tvp__advice-title { color: #ff8f8f; }
+.tvp__advice--unknown .tvp__advice-icon { color: var(--bg); background: var(--mute); }
 
 /* Bomba passou do tempo */
 .tvp__pump--over { background: linear-gradient(90deg, rgba(255, 107, 107, 0.3), var(--card-2)); outline: 2px solid var(--red); }
