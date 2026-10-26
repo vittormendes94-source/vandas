@@ -153,7 +153,7 @@ export function colorAt(stops: ColorStop[], v: number): RGB {
 
 /** Passo das isolinhas: o menor "redondo" que gera no máximo 4 linhas no intervalo medido. */
 export function contourStep(q: Quantity, lo: number, hi: number): number {
-  const steps = q === 'temperature' ? [0.2, 0.5, 1, 2, 5] : [1, 2, 5, 10, 20];
+  const steps = q === 'temperature' ? [0.1, 0.2, 0.5, 1, 2, 5] : [1, 2, 5, 10, 20];
   const range = hi - lo;
   for (const s of steps) if (range / s <= 4) return s;
   return steps[steps.length - 1]!;
@@ -249,4 +249,54 @@ export function buildProjection(points: ValuePoint[], widthM: number, heightM: n
     for (let c = 0; c < cols; c++) values[r * cols + c] = valueAt(along(((c + 0.5) / cols) * widthM, y));
   }
   return { cols, rows, values, inside };
+}
+
+/* ---------------------------------- Zonas de calor (estilo mapa térmico) ---------------------------------- */
+
+/**
+ * "Zonas de calor": cada sensor irradia a sua cor e as cores se misturam pela distância (IDW, potência 2), na
+ * estufa inteira. Funciona com qualquer número de sensores (≥ 1) e nunca sai do intervalo medido.
+ */
+export function buildHeatZones(points: ValuePoint[], widthM: number, heightM: number, cols: number, rows: number): Field | null {
+  if (points.length === 0) return null;
+  const values = new Float32Array(cols * rows);
+  const inside = new Uint8Array(cols * rows);
+  for (let r = 0; r < rows; r++) {
+    const y = ((r + 0.5) / rows) * heightM;
+    for (let c = 0; c < cols; c++) values[r * cols + c] = idwAt(points, ((c + 0.5) / cols) * widthM, y) ?? NaN;
+  }
+  return { cols, rows, values, inside };
+}
+
+/** Escala da zona de calor: centrada nos valores medidos, com amplitude mínima para não exagerar diferenças mínimas. */
+export function heatScale(q: Quantity, values: number[]): { lo: number; hi: number } {
+  const minSpan = q === 'temperature' ? 0.6 : 3;
+  if (values.length === 0) return q === 'temperature' ? { lo: 15, hi: 35 } : { lo: 30, hi: 100 };
+  const a = Math.min(...values);
+  const b = Math.max(...values);
+  const span = Math.max(minSpan, (b - a) * 1.25);
+  const mid = (a + b) / 2;
+  let lo = mid - span / 2;
+  let hi = mid + span / 2;
+  if (q === 'humidity') {
+    if (lo < 0) [lo, hi] = [0, span];
+    if (hi > 100) [lo, hi] = [100 - span, 100];
+  }
+  return { lo, hi };
+}
+
+/** Paleta de mapa térmico (azul → ciano → verde → amarelo → laranja → vermelho). Umidade: invertida (seco = vermelho). */
+export function heatStops(q: Quantity, lo: number, hi: number): ColorStop[] {
+  const ramp: [number, string][] = [
+    [0, '#1d2bd8'],
+    [0.16, '#1f7cff'],
+    [0.32, '#19d3f0'],
+    [0.48, '#3ee27a'],
+    [0.62, '#c6ee3a'],
+    [0.74, '#ffe12e'],
+    [0.87, '#ff8a1c'],
+    [1, '#e0221f'],
+  ];
+  const r = q === 'temperature' ? ramp : ramp.map(([p, c]) => [1 - p, c] as [number, string]).reverse();
+  return r.map(([p, c]) => ({ v: lo + p * (hi - lo), rgb: hex(c) }));
 }
