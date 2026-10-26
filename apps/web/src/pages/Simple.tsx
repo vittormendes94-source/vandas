@@ -8,6 +8,8 @@ import {
   formatAge,
   formatIrrigationDuration,
   formatTime,
+  irrigationAdvice,
+  localDateTimeString,
   meanAcrossSensors,
   readingFromDto,
   simplePump,
@@ -17,7 +19,7 @@ import {
   trendOf,
   valueTone,
 } from '@orq/core';
-import type { AppConfig, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, SimpleStatus, Snapshot, Trend, ValueTone } from '@orq/core';
+import type { AppConfig, IrrigationAdvice, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, SimpleStatus, Snapshot, Trend, ValueTone } from '@orq/core';
 import { SmartMap } from '../components/SmartMap';
 import { Forecast, OutdoorNow, useWeather } from '../components/Weather';
 import { useHistory } from '../hooks/useHistory';
@@ -57,13 +59,26 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
   const runningMs = running ? nowMs - Date.parse(running.startedAt) : 0;
   // margem de 2 min: a bomba é lida a cada 2 min
   const overrun = !!running && runningMs > (config.pump.maxRunMin + 2) * MIN;
+  const hottest = snap.sensors.reduce<number | null>((m, x) => (x.valid && x.reading ? Math.max(m ?? -Infinity, x.reading.temperatureC) : m), null);
+  // Sol: só vale se a previsão foi buscada há menos de 1 h.
+  const sunFresh = !!weather?.data && !!weather.fetchedAt && nowMs - Date.parse(weather.fetchedAt) < HOUR;
+  const advice = irrigationAdvice({
+    rules: config.irrigationRules,
+    insideMaxC: hottest,
+    sunWm2: sunFresh ? weather!.data!.current.directRadiationWm2 : null,
+    nowLocal: localDateTimeString(nowMs),
+    hours: weather?.data?.hours,
+  });
+  const badRun = pump.tone === 'on' && advice.state === 'no';
   const status: SimpleStatus = overrun
     ? {
         level: 'bad',
         headline: `Bomba ligada há ${formatIrrigationDuration(runningMs)}`,
         details: [`O tempo previsto de irrigação é ${config.pump.maxRunMin} min. Confira se a bomba desligou (risco de esvaziar a caixa d'água).`],
       }
-    : simpleStatus(snap, config, nowMs);
+    : badRun
+      ? { level: 'bad', headline: 'Irrigando fora das regras', details: [...advice.reasons, 'Risco de queimar plantas e flores.'] }
+      : simpleStatus(snap, config, nowMs);
 
   return (
     <main className="tvp">
@@ -113,7 +128,7 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
           today={today && today.hMin !== null ? [today.hMin, today.hMax!] : null}
           pumpOn={pump.tone === 'on'}
         />
-        <IrrigationColumn pump={pump} summary={data.irrigations} nowMs={nowMs} maxRunMin={config.pump.maxRunMin} overrun={overrun} />
+        <IrrigationColumn pump={pump} summary={data.irrigations} nowMs={nowMs} maxRunMin={config.pump.maxRunMin} overrun={overrun} advice={advice} />
       </div>
       <Forecast w={weather} nowMs={nowMs} />
     </main>
@@ -214,7 +229,7 @@ function toneWord(kind: Quantity, tone: ValueTone, fresh: number): string {
   return { ok: 'Dentro da faixa', low: 'Ar seco', high: 'Muito úmido' }[tone];
 }
 
-function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun }: { pump: ReturnType<typeof simplePump>; summary: IrrigationsSummary; nowMs: number; maxRunMin: number; overrun: boolean }) {
+function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun, advice }: { pump: ReturnType<typeof simplePump>; summary: IrrigationsSummary; nowMs: number; maxRunMin: number; overrun: boolean; advice: IrrigationAdvice }) {
   const dayStart = startOfLocalDay(nowMs);
   return (
     <section className="tvp__col tvp__col--irr" aria-label="Irrigação">
@@ -231,6 +246,8 @@ function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun }: { pump: 
           <div className="tvp__small">{overrun ? `Passou do tempo previsto (${maxRunMin} min)` : pump.detail}</div>
         </div>
       </div>
+
+      <AdviceCard advice={advice} />
 
       {pump.tone === 'none' && summary.last.length === 0 ? (
         <div className="tvp__soon">
@@ -259,7 +276,7 @@ function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun }: { pump: 
             <div className="tvp__empty">Nenhuma irrigação registrada ainda.</div>
           ) : (
             <ol className="tvp__list">
-              {summary.last.map((e) => {
+              {summary.last.slice(0, 3).map((e) => {
                 const start = Date.parse(e.startedAt);
                 const running = e.endedAt === null;
                 return (
@@ -278,6 +295,31 @@ function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun }: { pump: 
         </>
       )}
     </section>
+  );
+}
+
+/** "Pode irrigar agora?" pelas regras do dono (Configurações → Regras de irrigação). */
+function AdviceCard({ advice }: { advice: IrrigationAdvice }) {
+  const title = { ok: 'Pode irrigar agora', no: 'Não irrigar agora', unknown: 'Regras sem dados agora' }[advice.state];
+  const icon = { ok: 'M5 12.5l4.5 4.5L19 7.5', no: 'M7 7l10 10M17 7L7 17', unknown: 'M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17.5v.1' }[advice.state];
+  const detail =
+    advice.state === 'no'
+      ? advice.reasons
+      : advice.state === 'ok'
+        ? [advice.missing.length ? `Avaliado sem: ${advice.missing.join(', ')}` : 'Temperatura e sol dentro das regras']
+        : [advice.missing.join(' · ') || 'Nenhuma regra definida em Configurações'];
+  const next = advice.state !== 'no' ? null : advice.nextGood ? `Próximo horário bom: ${advice.nextGood}` : advice.reasons.every((r) => r.startsWith('Estufa')) ? 'Aguarde a estufa esfriar' : null;
+  return (
+    <div className={`tvp__advice tvp__advice--${advice.state}`} role="status">
+      <svg className="tvp__advice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d={icon} />
+      </svg>
+      <div>
+        <div className="tvp__advice-title">{title}</div>
+        <div className="tvp__advice-detail">{detail.join(' · ')}</div>
+        {next && <div className="tvp__advice-next">{next}</div>}
+      </div>
+    </div>
   );
 }
 

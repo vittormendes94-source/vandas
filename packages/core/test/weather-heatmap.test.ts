@@ -33,7 +33,7 @@ const FORECAST = {
 describe('clima (Open-Meteo)', () => {
   it('normaliza a previsão: agora + 7 dias', () => {
     const w = parseOpenMeteoForecast(FORECAST);
-    expect(w.current).toEqual({ time: '2026-10-26T15:00', temperatureC: 27.4, humidityPct: 58, precipitationMm: 0, code: 2, isDay: true });
+    expect(w.current).toEqual({ time: '2026-10-26T15:00', temperatureC: 27.4, humidityPct: 58, precipitationMm: 0, code: 2, isDay: true, directRadiationWm2: null });
     expect(w.days).toHaveLength(7);
     expect(w.days[3]).toEqual({ date: '2026-10-29', code: 95, tMax: 26.8, tMin: 18.1, rainMm: 22, rainProb: 90 });
   });

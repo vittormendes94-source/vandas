@@ -14,3 +14,4 @@ export * from './simple';
 export * from './irrigation';
 export * from './weather';
 export * from './heatmap';
+export * from './rules';
