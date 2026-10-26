@@ -650,8 +650,11 @@ html.tv button, html.tv a { cursor: pointer; }
   .tvp__out { grid-column: 1 / -1; }
   .tvp__fc { grid-template-columns: 1fr; }
   .tvp__fc-days { grid-template-columns: 1fr; gap: 0.3em; }
-  .tvp__qv { grid-template-columns: 40% minmax(0, 1fr); grid-template-rows: auto; }
-  .tvp__vmap { height: 85vw; width: 100%; }
+  .tvp__col { overflow: visible; }
+  .tvp__qv { flex: none; grid-template-columns: 42% minmax(0, 1fr); grid-template-rows: auto; }
+  .tvp__vmap { height: 100vw; width: 100%; }
+  .tvp__qv-side { overflow: visible; }
+  .tvp__spark-wrap { min-height: 120px; }
   .tvp__fc-days li { grid-template-columns: 4.5em 2.2em 1fr auto; grid-template-areas: 'day icon temp rain'; }
   .tvp__fc-icon { width: 2em; height: 2em; }
   .tvp__clock { align-items: flex-start; text-align: left; }
