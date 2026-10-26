@@ -154,7 +154,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
 
       <Section
         title="Sensores"
-        sub={`Nomes e posições em metros (x: 0–${ROOM.lengthM} m ao longo do comprimento; y: 0–${ROOM.widthM} m ao longo da largura, a partir do canto superior esquerdo). Arraste no mapa ou digite.`}
+        sub={`Nomes e posições em metros (planta em pé, como a estufa — x: 0–${ROOM.lengthM} m de cima para baixo; y: 0–${ROOM.widthM} m da esquerda para a direita). Arraste no mapa ou digite.`}
         chip={draft.sensors.some((s) => s.positionProvisional) ? <Chip kind="warn">Há posições provisórias</Chip> : <Chip kind="ok">Posições informadas</Chip>}
       >
         <div className="split">

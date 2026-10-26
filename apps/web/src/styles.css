@@ -280,7 +280,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 .rowlist__row { display: grid; gap: 0.5rem; grid-template-columns: minmax(7rem, 1.5fr) repeat(2, minmax(4.5rem, 0.7fr)) auto auto; align-items: end; padding: 0.55rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.015); }
 .rowlist__row--spr { grid-template-columns: minmax(4rem, 1fr) repeat(3, minmax(4rem, 0.7fr)) auto; }
 .rowlist__row > * { min-width: 0; }
-.editor { width: 100%; height: auto; touch-action: none; border: 1px solid var(--line-2); border-radius: 10px; background: #081015; display: block; user-select: none; }
+.editor { width: 100%; max-width: 260px; margin: 0 auto; height: auto; touch-action: none; border: 1px solid var(--line-2); border-radius: 10px; background: #081015; display: block; user-select: none; }
 .editor .item { cursor: grab; }
 .editor .item:active { cursor: grabbing; }
 .sticky-save { position: sticky; bottom: 0; z-index: 20; background: rgba(7, 13, 17, 0.94); border-top: 1px solid var(--line-2); padding: 0.7rem 1.25rem; margin: 0 -1.25rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; backdrop-filter: blur(6px); }

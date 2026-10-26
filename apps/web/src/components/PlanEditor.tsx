@@ -32,15 +32,16 @@ export function PlanEditor({ items, onMove, kind, ariaLabel, ghosts }: Props) {
   const toMeters = (e: ReactPointerEvent) => {
     const svg = ref.current!;
     const r = svg.getBoundingClientRect();
-    const vbW = ROOM.lengthM * U + 4;
-    const vbH = ROOM.widthM * U + 4;
-    const x = ((e.clientX - r.left) / r.width) * vbW - 2;
-    const y = ((e.clientY - r.top) / r.height) * vbH - 2;
+    // Planta em pé, como a estufa: 12 m (x) de cima para baixo, 5 m (y) da esquerda para a direita.
+    const vbW = ROOM.widthM * U + 4;
+    const vbH = ROOM.lengthM * U + 4;
+    const y = ((e.clientX - r.left) / r.width) * vbW - 2;
+    const x = ((e.clientY - r.top) / r.height) * vbH - 2;
     return { x: snap(clamp(x / U, 0, ROOM.lengthM)), y: snap(clamp(y / U, 0, ROOM.widthM)) };
   };
 
   const onKey = (e: KeyboardEvent, it: EditItem) => {
-    const d = { ArrowLeft: [-0.1, 0], ArrowRight: [0.1, 0], ArrowUp: [0, -0.1], ArrowDown: [0, 0.1] }[e.key];
+    const d = { ArrowUp: [-0.1, 0], ArrowDown: [0.1, 0], ArrowLeft: [0, -0.1], ArrowRight: [0, 0.1] }[e.key];
     if (!d) return;
     e.preventDefault();
     onMove(it.id, snap(clamp(it.xM + d[0]!, 0, ROOM.lengthM)), snap(clamp(it.yM + d[1]!, 0, ROOM.widthM)));
@@ -50,7 +51,7 @@ export function PlanEditor({ items, onMove, kind, ariaLabel, ghosts }: Props) {
     <svg
       ref={ref}
       className="editor"
-      viewBox={`-2 -2 ${ROOM.lengthM * U + 4} ${ROOM.widthM * U + 4}`}
+      viewBox={`-2 -2 ${ROOM.widthM * U + 4} ${ROOM.lengthM * U + 4}`}
       role="group"
       aria-label={ariaLabel}
       onPointerMove={(e) => {
@@ -61,16 +62,16 @@ export function PlanEditor({ items, onMove, kind, ariaLabel, ghosts }: Props) {
       onPointerUp={() => setDrag(null)}
       onPointerCancel={() => setDrag(null)}
     >
-      <rect x={0} y={0} width={ROOM.lengthM * U} height={ROOM.widthM * U} fill="none" stroke="#2a4250" strokeWidth={0.4} />
+      <rect x={0} y={0} width={ROOM.widthM * U} height={ROOM.lengthM * U} fill="none" stroke="#2a4250" strokeWidth={0.4} />
       {Array.from({ length: ROOM.lengthM - 1 }, (_, i) => (
-        <line key={`x${i}`} x1={(i + 1) * U} x2={(i + 1) * U} y1={0} y2={ROOM.widthM * U} stroke="rgba(255,255,255,0.06)" strokeWidth={0.2} />
+        <line key={`x${i}`} y1={(i + 1) * U} y2={(i + 1) * U} x1={0} x2={ROOM.widthM * U} stroke="rgba(255,255,255,0.06)" strokeWidth={0.2} />
       ))}
       {Array.from({ length: ROOM.widthM - 1 }, (_, i) => (
-        <line key={`y${i}`} y1={(i + 1) * U} y2={(i + 1) * U} x1={0} x2={ROOM.lengthM * U} stroke="rgba(255,255,255,0.06)" strokeWidth={0.2} />
+        <line key={`y${i}`} x1={(i + 1) * U} x2={(i + 1) * U} y1={0} y2={ROOM.lengthM * U} stroke="rgba(255,255,255,0.06)" strokeWidth={0.2} />
       ))}
       {ghosts?.map((g) => (
         <g key={`g${g.id}`} opacity={0.35}>
-          <circle cx={g.xM * U} cy={g.yM * U} r={1.4} fill="none" stroke="#38d6e8" strokeWidth={0.3} />
+          <circle cx={g.yM * U} cy={g.xM * U} r={1.4} fill="none" stroke="#38d6e8" strokeWidth={0.3} />
         </g>
       ))}
       {items.map((it) => (
@@ -87,13 +88,13 @@ export function PlanEditor({ items, onMove, kind, ariaLabel, ghosts }: Props) {
           }}
           onKeyDown={(e) => onKey(e, it)}
         >
-          {it.radiusM !== undefined && <circle cx={it.xM * U} cy={it.yM * U} r={it.radiusM * U} fill="rgba(56,214,232,0.05)" stroke="rgba(56,214,232,0.3)" strokeWidth={0.2} strokeDasharray="0.6 0.6" pointerEvents="none" />}
+          {it.radiusM !== undefined && <circle cx={it.yM * U} cy={it.xM * U} r={it.radiusM * U} fill="rgba(56,214,232,0.05)" stroke="rgba(56,214,232,0.3)" strokeWidth={0.2} strokeDasharray="0.6 0.6" pointerEvents="none" />}
           {kind === 'sensor' ? (
-            <rect x={it.xM * U - 3.2} y={it.yM * U - 2} width={6.4} height={4} rx={1} fill="#0b171d" stroke="#3ddc97" strokeWidth={0.5} />
+            <rect x={it.yM * U - 3.2} y={it.xM * U - 2} width={6.4} height={4} rx={1} fill="#0b171d" stroke="#3ddc97" strokeWidth={0.5} />
           ) : (
-            <circle cx={it.xM * U} cy={it.yM * U} r={2} fill="#0b171d" stroke="#38d6e8" strokeWidth={0.5} />
+            <circle cx={it.yM * U} cy={it.xM * U} r={2} fill="#0b171d" stroke="#38d6e8" strokeWidth={0.5} />
           )}
-          <text x={it.xM * U} y={it.yM * U + (kind === 'sensor' ? 0.9 : 0.8)} textAnchor="middle" fontSize={kind === 'sensor' ? 2.3 : 1.9} fill="#e8f2f3" fontWeight={700} pointerEvents="none">
+          <text x={it.yM * U} y={it.xM * U + (kind === 'sensor' ? 0.9 : 0.8)} textAnchor="middle" fontSize={kind === 'sensor' ? 2.3 : 1.9} fill="#e8f2f3" fontWeight={700} pointerEvents="none">
             {it.label}
           </text>
         </g>
