@@ -25,8 +25,8 @@ interface Props {
 }
 
 /** Desenha o campo estimado (IDW) num canvas que acompanha o tamanho do contêiner. Usado pelo painel e pela TV. */
-export function useFieldCanvas(quantity: Quantity, snapshot: Snapshot, config: AppConfig, opts: { hatch?: boolean; grid?: boolean } = {}) {
-  const { hatch = true, grid = true } = opts;
+export function useFieldCanvas(quantity: Quantity, snapshot: Snapshot, config: AppConfig, opts: { hatch?: boolean; grid?: boolean; transparent?: boolean } = {}) {
+  const { hatch = true, grid = true, transparent = false } = opts;
   const scale = config.scales[quantity];
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -60,8 +60,11 @@ export function useFieldCanvas(quantity: Quantity, snapshot: Snapshot, config: A
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const { w: W, h: H } = size;
-    ctx.fillStyle = '#081015';
-    ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H);
+    if (!transparent) {
+      ctx.fillStyle = '#081015';
+      ctx.fillRect(0, 0, W, H);
+    }
     const px = (xm: number) => (xm / ROOM.lengthM) * W;
     const py = (ym: number) => (ym / ROOM.widthM) * H;
 
@@ -132,7 +135,7 @@ export function useFieldCanvas(quantity: Quantity, snapshot: Snapshot, config: A
         ctx.stroke();
       }
     }
-  }, [field, coverage, size, scale, quantity, hatch, grid]);
+  }, [field, coverage, size, scale, quantity, hatch, grid, transparent]);
 
   return { stageRef, canvasRef, points, coverage, field };
 }

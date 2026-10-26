@@ -376,7 +376,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__status--ok { border-left-color: var(--green); background: linear-gradient(90deg, rgba(61, 220, 151, 0.14), var(--card) 55%); }
 .tvp__status--warn { border-left-color: var(--amber); background: linear-gradient(90deg, rgba(245, 185, 66, 0.18), var(--card) 55%); }
 .tvp__status--bad { border-left-color: var(--red); background: linear-gradient(90deg, rgba(255, 107, 107, 0.2), var(--card) 55%); }
-.tvp__status--setup { border-left-color: var(--cyan); }
+.tvp__status--setup { border-left-color: var(--cyan); background: linear-gradient(90deg, rgba(56, 214, 230, 0.1), var(--card) 55%); }
 .tvp__status-icon {
   width: clamp(44px, 3.6vw, 90px);
   height: clamp(44px, 3.6vw, 90px);
@@ -391,7 +391,8 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__status--ok .tvp__status-icon { background: var(--green); }
 .tvp__status--warn .tvp__status-icon { background: var(--amber); }
 .tvp__status--bad .tvp__status-icon { background: var(--red); }
-.tvp__status--setup .tvp__status-icon { background: var(--cyan); }
+.tvp__status--setup .tvp__status-icon { background: rgba(56, 214, 230, 0.16); color: var(--cyan); }
+.tvp__status-icon svg { width: 60%; height: 60%; }
 .tvp__headline { font-size: clamp(22px, 2.2vw, 56px); font-weight: 750; line-height: 1.1; }
 .tvp__details { display: flex; flex-wrap: wrap; gap: 0.2em 1.4em; color: var(--dim); margin-top: 0.25em; font-size: clamp(13px, 0.95vw, 24px); }
 .tvp__right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3em; text-align: right; }
@@ -414,9 +415,15 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__col--temperature { border-top: 4px solid var(--tvp-temp); }
 .tvp__col--humidity { border-top: 4px solid var(--tvp-hum); }
 .tvp__col--irr { border-top: 4px solid var(--cyan); }
-.tvp__label { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--dim); font-size: clamp(13px, 0.95vw, 24px); }
+.tvp__label { display: flex; align-items: center; gap: 0.45em; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--dim); font-size: clamp(13px, 0.95vw, 24px); }
 .tvp__value-row { display: flex; align-items: baseline; gap: 0.5em; flex-wrap: wrap; }
 .tvp__value { font-size: clamp(54px, 5.4vw, 140px); font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.tvp__label-icon { width: 1.35em; height: 1.35em; flex: none; }
+.tvp__col--temperature .tvp__label-icon { color: var(--tvp-temp); }
+.tvp__col--humidity .tvp__label-icon { color: var(--tvp-hum); }
+.tvp__col--irr .tvp__label-icon { color: var(--cyan); }
+.tvp__value--empty { color: rgba(255, 255, 255, 0.16); }
+.tvp__value--lost { color: var(--amber); }
 .tvp__word { font-size: clamp(16px, 1.25vw, 32px); font-weight: 600; color: var(--dim); }
 .tone-temperature-ok, .tone-humidity-ok { color: var(--green); }
 .tone-temperature-high { color: #ff7a59; }
@@ -430,11 +437,23 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__col--humidity .tvp__trend--up .tvp__trend-arrow { color: #6fb6ff; }
 .tvp__col--humidity .tvp__trend--down .tvp__trend-arrow { color: var(--amber); }
 
-.tvp__map { position: relative; width: 100%; aspect-ratio: 12 / 5; border-radius: var(--radius-sm); overflow: hidden; background: #081015; border: 1px solid var(--line-2); }
+.tvp__map {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 12 / 5;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  /* Piso da estufa: quadriculado de 1 m (12 × 5). */
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px calc(100% / 12)),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px calc(100% / 5)),
+    radial-gradient(ellipse at 50% 40%, #12202a, #0a1218 75%);
+}
 .tvp__map canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tvp__spr { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.tvp__spr-area { fill: rgba(56, 182, 255, 0.03); stroke: rgba(255, 255, 255, 0.4); stroke-width: 1.2; stroke-dasharray: 5 4; }
-.tvp__spr-head { fill: rgba(255, 255, 255, 0.85); stroke: none; }
+.tvp__spr-area { fill: rgba(56, 182, 255, 0.05); stroke: rgba(143, 211, 255, 0.28); stroke-width: 1; }
+.tvp__spr-head { fill: rgba(143, 211, 255, 0.7); stroke: none; }
 .tvp__spr--on .tvp__spr-area { fill: rgba(56, 182, 255, 0.16); stroke: #8fd3ff; stroke-dasharray: none; animation: tvp-pulse 1.8s ease-in-out infinite; }
 .tvp__spr--on .tvp__spr-head { fill: #8fd3ff; }
 @keyframes tvp-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
@@ -442,16 +461,23 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__pin {
   position: absolute;
   transform: translate(-50%, -50%);
-  padding: 0.15em 0.5em;
-  border-radius: 8px;
-  background: rgba(7, 13, 17, 0.78);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.2em 0.6em 0.25em;
+  border-radius: 10px;
+  background: rgba(7, 13, 17, 0.82);
   border: 2px solid rgba(255, 255, 255, 0.85);
-  font-weight: 750;
-  font-size: clamp(14px, 1.2vw, 30px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
-.tvp__pin--off { border-color: var(--red); color: var(--red); border-style: dashed; font-size: clamp(11px, 0.85vw, 22px); }
+.tvp__pin b { font-weight: 750; font-size: clamp(14px, 1.2vw, 30px); font-variant-numeric: tabular-nums; }
+.tvp__pin small { color: var(--dim); font-size: clamp(10px, 0.65vw, 16px); }
+.tvp__pin--wait { border-color: rgba(255, 255, 255, 0.22); }
+.tvp__pin--wait b { color: var(--dim); font-weight: 600; font-size: clamp(12px, 0.85vw, 22px); }
+.tvp__pin--lost { border-color: var(--amber); }
+.tvp__pin--lost b { color: var(--amber); font-size: clamp(12px, 0.85vw, 22px); }
 .tvp__map-flag { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); padding: 0.3em 0.8em; border-radius: 999px; background: rgba(7, 13, 17, 0.85); color: var(--amber); font-size: clamp(12px, 0.85vw, 22px); white-space: nowrap; }
 .tvp__scale { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.6em; color: var(--mute); font-size: clamp(12px, 0.8vw, 20px); }
 .tvp__scale i { height: clamp(6px, 0.5vw, 12px); border-radius: 999px; }
@@ -459,6 +485,18 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__spark { display: block; width: 100%; flex: 1; min-height: 0; height: clamp(60px, 8vh, 140px); }
 @media (min-width: 1100px) { .tvp__spark { height: auto; } }
 .tvp__spark-axis { display: flex; justify-content: space-between; color: var(--mute); font-size: clamp(11px, 0.7vw, 18px); border-top: 1px solid var(--line); padding-top: 0.2em; }
+.tvp__spark-box--empty {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 1em 2em;
+  color: var(--mute);
+  font-size: clamp(13px, 0.95vw, 24px);
+  border-bottom: 1px solid var(--line);
+  /* linhas-guia de um gráfico ainda vazio */
+  background: repeating-linear-gradient(0deg, transparent 0 calc(25% - 1px), rgba(255, 255, 255, 0.04) calc(25% - 1px) 25%);
+}
+.tvp__spark-box--empty span { max-width: 26em; padding: 0.4em 0.9em; border-radius: 999px; background: var(--card); }
 .tvp__spark--empty { display: grid; place-items: center; color: var(--mute); border: 1px dashed var(--line-2); border-radius: var(--radius-sm); font-size: clamp(12px, 0.8vw, 20px); }
 .tvp__spark-label { display: flex; justify-content: space-between; gap: 1em; flex-wrap: wrap; color: var(--mute); font-size: clamp(12px, 0.85vw, 22px); margin-top: 0.3em; }
 .tvp__spark-label b { color: var(--text); }
@@ -472,6 +510,12 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__pump-label { font-size: clamp(22px, 2vw, 52px); font-weight: 800; line-height: 1.05; }
 .tvp__pump--on .tvp__pump-label { color: #8fd3ff; }
 .tvp__pump--unknown .tvp__pump-label { color: var(--amber); }
+.tvp__pump--none .tvp__pump-label { font-size: clamp(18px, 1.3vw, 34px); color: var(--dim); }
+.tvp__pump--none .tvp__pump-icon { width: clamp(36px, 2.8vw, 72px); height: clamp(36px, 2.8vw, 72px); opacity: 0.6; }
+.tvp__soon { display: flex; flex-direction: column; gap: 0.5em; }
+.tvp__soon ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.4em; }
+.tvp__soon li { padding: 0.55em 0.8em; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.025); color: var(--dim); font-size: clamp(14px, 1vw, 26px); }
+.tvp__soon li::before { content: '•'; color: var(--cyan); margin-right: 0.5em; }
 .tvp__small { color: var(--mute); font-size: clamp(12px, 0.85vw, 22px); }
 .tvp__today { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8em; }
 .tvp__today > div { padding: 0.6em 0.8em; border-radius: var(--radius-sm); background: var(--card-2); }
@@ -484,7 +528,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__list-running { outline: 2px solid #8fd3ff; }
 .tvp__list-running .tvp__list-dur { color: #8fd3ff; font-weight: 700; }
 .tvp__list-note { width: 100%; color: var(--amber); font-size: 0.75em; }
-.tvp__empty { color: var(--mute); padding: 0.8em; border: 1px dashed var(--line-2); border-radius: var(--radius-sm); }
+.tvp__empty { color: var(--mute); padding: 0.8em; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.025); }
 .tvp__footnote { margin-top: auto; color: var(--mute); font-size: clamp(11px, 0.7vw, 18px); }
 
 /* Telas largas (computador e TV): tudo cabe numa tela, sem rolagem. */
