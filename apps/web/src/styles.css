@@ -654,7 +654,7 @@ html.tv button, html.tv a { cursor: pointer; }
   .tvp__qv { flex: none; grid-template-columns: 42% minmax(0, 1fr); grid-template-rows: auto; }
   .tvp__vmap { height: 100vw; width: 100%; }
   .tvp__qv-side { overflow: visible; }
-  .tvp__spark-wrap { min-height: 120px; }
+  .tvp__spark-wrap { flex: none; height: 150px; }
   .tvp__fc-days li { grid-template-columns: 4.5em 2.2em 1fr auto; grid-template-areas: 'day icon temp rain'; }
   .tvp__fc-icon { width: 2em; height: 2em; }
   .tvp__clock { align-items: flex-start; text-align: left; }
@@ -672,9 +672,9 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__status--bad .tvp__brand { color: #ffd0d0; }
 /* Gráfico com projeção */
 .tvp__spark-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
-.tvp__spark-wrap .tvp__spark { flex: 1; }
+.tvp__spark-wrap .tvp__spark { flex: 1; width: 100%; height: 100% !important; min-height: 0; }
 .tvp__spark-proj { position: absolute; right: 0; transform: translateY(-120%); font-size: clamp(11px, 0.75vw, 19px); font-weight: 700; color: var(--text); background: rgba(7,13,17,0.7); padding: 0 0.35em; border-radius: 4px; }
-.tvp__spark-future { position: absolute; right: 0.3em; top: 0.2em; font-size: clamp(10px, 0.65vw, 16px); color: var(--mute); }
+.tvp__spark-future { position: absolute; right: 0.3em; bottom: 0.2em; font-size: clamp(10px, 0.65vw, 16px); color: var(--mute); }
 
 .push-toggle { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2em; max-width: 22rem; text-align: right; }
 .push-toggle .small { color: var(--dim); font-size: 0.75em; }
