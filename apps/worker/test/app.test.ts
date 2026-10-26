@@ -743,3 +743,84 @@ describe('clima da cidade (Open-Meteo)', () => {
     expect(((await r.json()) as { places: { label: string }[] }).places[0]!.label).toBe('Uberlândia, Minas Gerais, Brasil');
   });
 });
+
+describe('avisos no celular (Web Push)', () => {
+  const b64u = (u: Uint8Array) => Buffer.from(u).toString('base64url');
+  async function hmac(k: Uint8Array, d: Uint8Array) {
+    const key = await crypto.subtle.importKey('raw', k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return new Uint8Array(await crypto.subtle.sign('HMAC', key, d));
+  }
+  const hkdf = async (salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, n: number) => (await hmac(await hmac(salt, ikm), new Uint8Array([...info, 1]))).slice(0, n);
+  async function subscriber() {
+    const kp = (await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])) as CryptoKeyPair;
+    const pub = new Uint8Array((await crypto.subtle.exportKey('raw', kp.publicKey)) as ArrayBuffer);
+    const auth = crypto.getRandomValues(new Uint8Array(16));
+    return { kp, pub, auth };
+  }
+  async function decrypt(s: Awaited<ReturnType<typeof subscriber>>, body: Uint8Array) {
+    const salt = body.slice(0, 16);
+    const asPub = body.slice(21, 86);
+    const asKey = await crypto.subtle.importKey('raw', asPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    const ecdh = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: asKey } as unknown as Parameters<typeof crypto.subtle.deriveBits>[0], s.kp.privateKey, 256));
+    const te = new TextEncoder();
+    const ikm = await hkdf(s.auth, ecdh, new Uint8Array([...te.encode('WebPush: info\0'), ...s.pub, ...asPub]), 32);
+    const cek = await hkdf(salt, ikm, te.encode('Content-Encoding: aes128gcm\0'), 16);
+    const nonce = await hkdf(salt, ikm, te.encode('Content-Encoding: nonce\0'), 12);
+    const key = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['decrypt']);
+    const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, body.slice(86)));
+    expect(plain[plain.length - 1]).toBe(2);
+    return new TextDecoder().decode(plain.slice(0, -1));
+  }
+
+  it('inscreve, envia aviso cifrado (RFC 8291) com VAPID e o celular consegue ler', async () => {
+    const s = await subscriber();
+    const endpoint = 'https://push.example.test/abc';
+    expect((await post('/api/push/subscribe', { endpoint, keys: { p256dh: b64u(s.pub), auth: b64u(s.auth) } }, null)).status).toBe(200);
+    const sent: { url: string; headers: Headers; body: Uint8Array }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      sent.push({ url, headers: new Headers(init.headers), body: new Uint8Array(init.body as Uint8Array) });
+      return new Response(null, { status: 201 });
+    });
+    const r = await post('/api/push/test', { endpoint }, null);
+    expect(((await r.json()) as { sent: number }).sent).toBe(1);
+    expect(sent[0]!.url).toBe(endpoint);
+    expect(sent[0]!.headers.get('content-encoding')).toBe('aes128gcm');
+    const auth = sent[0]!.headers.get('authorization')!;
+    expect(auth).toMatch(/^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/);
+    // assinatura VAPID confere com a chave pública divulgada
+    const { publicKey } = (await (await call('/api/push/key')).json()) as { publicKey: string };
+    expect(auth.endsWith(`k=${publicKey}`)).toBe(true);
+    const [h, c, sig] = auth.slice(8, auth.indexOf(',')).split('.');
+    const pk = await crypto.subtle.importKey('raw', Buffer.from(publicKey, 'base64url'), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    expect(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, Buffer.from(sig!, 'base64url'), new TextEncoder().encode(`${h}.${c}`))).toBe(true);
+    expect(JSON.parse(Buffer.from(c!, 'base64url').toString()).aud).toBe('https://push.example.test');
+    expect(JSON.parse(await decrypt(s, sent[0]!.body))).toMatchObject({ title: 'Orquidário Inteligente', tag: 'teste' });
+  });
+
+  it('alerta automático só na mudança; assinatura expirada (410) é removida', async () => {
+    const s = await subscriber();
+    const endpoint = 'https://push.example.test/xyz';
+    await post('/api/push/subscribe', { endpoint, keys: { p256dh: b64u(s.pub), auth: b64u(s.auth) } }, null);
+    const c = await getConfig(env.DB);
+    c.alerts.temperature = { min: 10, max: 30 };
+    await saveConfig(env.DB, c, Date.now());
+    const T = Date.now();
+    await ingest([reading({ sensorId: 's1', temperatureC: 34, measuredAt: iso(T - MIN) })]);
+    const bodies: Uint8Array[] = [];
+    let status = 201;
+    vi.stubGlobal('fetch', async (_u: string, init: RequestInit) => {
+      bodies.push(new Uint8Array(init.body as Uint8Array));
+      return new Response(null, { status });
+    });
+    await runScheduled(env, T);
+    expect(bodies).toHaveLength(1);
+    expect(JSON.parse(await decrypt(s, bodies[0]!)).title).toBe('Estufa quente');
+    await runScheduled(env, T + 2 * MIN);
+    expect(bodies).toHaveLength(1); // não repete
+    status = 410;
+    await env.DB.prepare("DELETE FROM settings WHERE key = 'push_alerts'").run(); // força novo envio
+    await runScheduled(env, T + 4 * MIN);
+    const left = await env.DB.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').first<{ n: number }>();
+    expect(left!.n).toBe(0);
+  });
+});

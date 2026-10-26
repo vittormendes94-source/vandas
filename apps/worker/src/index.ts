@@ -4,6 +4,7 @@ import type { Env } from './env';
 import { PROVIDER, pollEwelink } from './ewelink';
 import { trackPumpFromDb } from './irrigation';
 import { runAutomation } from './automation';
+import { runPushAlerts } from './push';
 import { pollSwitchbot } from './switchbot';
 import { logError, logInfo } from './logging';
 import { applyRetention, getConfig } from './repo';
@@ -27,6 +28,8 @@ export async function runScheduled(env: Env, scheduledTime: number): Promise<voi
     await trackPumpFromDb(env.DB, config, PROVIDER, scheduledTime).catch((e) => logError('irrigacao', e, env));
     // Automação da bomba: liga nos horários e desliga fora das regras ou do tempo.
     await runAutomation(env, env.DB, config, scheduledTime).catch((e) => logError('automacao', e, env));
+    // Avisos no celular (só quando algo muda).
+    await runPushAlerts(env, env.DB, config, scheduledTime).catch((e) => logError('push', e, env));
     const d = new Date(scheduledTime);
     if (d.getUTCHours() === 6 && d.getUTCMinutes() < 2) {
       const ret = await applyRetention(env.DB, config, scheduledTime);

@@ -672,3 +672,12 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__spark-wrap .tvp__spark { flex: 1; }
 .tvp__spark-proj { position: absolute; right: 0; transform: translateY(-120%); font-size: clamp(11px, 0.75vw, 19px); font-weight: 700; color: var(--text); background: rgba(7,13,17,0.7); padding: 0 0.35em; border-radius: 4px; }
 .tvp__spark-future { position: absolute; right: 0.3em; top: 0.2em; font-size: clamp(10px, 0.65vw, 16px); color: var(--mute); }
+
+.push-toggle { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2em; max-width: 22rem; text-align: right; }
+.push-toggle .small { color: var(--dim); font-size: 0.75em; }
+
+.report__grid { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.report__box { padding: 0.8rem 1rem; border-radius: var(--radius-sm); background: rgba(255,255,255,0.025); }
+.report__box h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+.report__box ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+@media print { .hide-print, header, nav, .sticky-save { display: none !important; } body { background: #fff; color: #000; } .card { border: 1px solid #ccc; background: #fff; } }
