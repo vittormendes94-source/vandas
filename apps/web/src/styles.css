@@ -601,9 +601,16 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__fc-temp { grid-area: temp; color: var(--mute); font-size: clamp(13px, 0.9vw, 22px); font-variant-numeric: tabular-nums; }
 .tvp__fc-temp b { color: var(--text); }
 .tvp__fc-rain { grid-area: rain; color: #8fd3ff; font-size: clamp(12px, 0.85vw, 21px); font-weight: 600; min-height: 1.2em; }
-.tvp__fc-key { display: flex; align-items: center; gap: 0.45em; color: #8fd3ff; font-size: clamp(11px, 0.78vw, 20px); }
-.tvp__fc-key i { width: 0.9em; height: 0.9em; border-radius: 3px; background: rgba(56, 182, 255, 0.3); outline: 1px solid rgba(143, 211, 255, 0.6); }
+.tvp__fc-keys { display: flex; flex-wrap: wrap; gap: 0.3em 0.9em; }
+.tvp__fc-key { display: flex; align-items: center; gap: 0.45em; font-size: clamp(11px, 0.78vw, 20px); }
+.tvp__fc-key i { width: 0.9em; height: 0.9em; border-radius: 3px; }
+.tvp__fc-key--wet { color: #8fd3ff; }
+.tvp__fc-key--wet i { background: rgba(56, 182, 255, 0.3); outline: 1px solid rgba(143, 211, 255, 0.6); }
+.tvp__fc-key--sun { color: #ffc98a; }
+.tvp__fc-key--sun i { background: rgba(255, 159, 67, 0.3); outline: 1px solid rgba(255, 190, 120, 0.6); }
 .tvp__fc-wet { background: rgba(56, 182, 255, 0.14) !important; outline: 1px solid rgba(143, 211, 255, 0.45); }
+.tvp__fc-sun { background: rgba(255, 159, 67, 0.13) !important; outline: 1px solid rgba(255, 190, 120, 0.4); }
+.tvp__fc-sun .tvp__fc-rain { color: #ffc98a; }
 
 /* Telas largas (computador e TV): tudo cabe numa tela, sem rolagem. */
 @media (min-width: 1100px) {
