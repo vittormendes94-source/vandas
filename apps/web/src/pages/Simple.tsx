@@ -166,6 +166,13 @@ function QuantityColumn(p: {
   const never = p.snap.lastMeasuredAt === null;
   return (
     <section className={`tvp__col tvp__col--${p.quantity}`} aria-label={p.title}>
+      <SmartMap
+        quantity={p.quantity}
+        snapshot={p.snap}
+        config={p.config}
+        pumpOn={p.pumpOn ?? false}
+        head={
+          <>
       <div className="tvp__col-head">
         <div className="tvp__label">
           {p.quantity === 'temperature' ? <ThermoIcon /> : <DropIcon />}
@@ -183,7 +190,10 @@ function QuantityColumn(p: {
         )}
         <div className="tvp__word">{mean === null ? (never ? 'Aguardando a primeira leitura' : `Sem sinal · última leitura ${formatAge(p.nowMs - p.snap.lastMeasuredAt!)}`) : toneWord(p.quantity, tone, fresh)}</div>
       </div>
-      <SmartMap quantity={p.quantity} snapshot={p.snap} config={p.config} pumpOn={p.pumpOn ?? false} />
+          </>
+        }
+        footer={
+          <>
       {p.line.length < 2 ? (
         <div className="tvp__spark-box tvp__spark-box--empty">
           <span>O gráfico das últimas 24 horas aparece aqui depois das primeiras leituras.</span>
@@ -206,6 +216,9 @@ function QuantityColumn(p: {
           </div>
         </div>
       )}
+          </>
+        }
+      />
     </section>
   );
 }

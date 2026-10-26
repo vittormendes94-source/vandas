@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { ROOM, buildHeatZones, colorAt, fmtNum, heatScale, heatStops } from '@orq/core';
 import type { AppConfig, Quantity, Snapshot } from '@orq/core';
 
@@ -13,7 +14,21 @@ const UNIT: Record<Quantity, { suffix: string; digits: number }> = {
  * Mapa da Visão TV no estilo "zona de calor": cada sensor irradia a sua cor e as cores se misturam pela distância
  * (IDW) em toda a estufa. Escala azul → vermelho centrada nos valores medidos (umidade invertida: seco = vermelho).
  */
-export function SmartMap({ quantity, snapshot, config, pumpOn }: { quantity: Quantity; snapshot: Snapshot; config: AppConfig; pumpOn: boolean }) {
+export function SmartMap({
+  quantity,
+  snapshot,
+  config,
+  pumpOn,
+  head,
+  footer,
+}: {
+  quantity: Quantity;
+  snapshot: Snapshot;
+  config: AppConfig;
+  pumpOn: boolean;
+  head?: ReactNode;
+  footer?: ReactNode;
+}) {
   const u = UNIT[quantity];
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,18 +66,21 @@ export function SmartMap({ quantity, snapshot, config, pumpOn }: { quantity: Qua
     ctx.clearRect(0, 0, W, H);
     if (!field) return;
 
+    // Croqui em pé, como a estufa: os 12 m na vertical (de cima para baixo) e os 5 m na horizontal.
     const off = document.createElement('canvas');
-    off.width = COLS;
-    off.height = ROWS;
+    off.width = ROWS;
+    off.height = COLS;
     const octx = off.getContext('2d')!;
-    const img = octx.createImageData(COLS, ROWS);
-    for (let i = 0; i < COLS * ROWS; i++) {
-      const [r, g, b] = colorAt(stops, field.values[i]!);
-      img.data[i * 4] = r;
-      img.data[i * 4 + 1] = g;
-      img.data[i * 4 + 2] = b;
-      img.data[i * 4 + 3] = 255;
-    }
+    const img = octx.createImageData(ROWS, COLS);
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        const [cr, cg, cb] = colorAt(stops, field.values[r * COLS + c]!);
+        const k = (c * ROWS + r) * 4;
+        img.data[k] = cr;
+        img.data[k + 1] = cg;
+        img.data[k + 2] = cb;
+        img.data[k + 3] = 255;
+      }
     octx.putImageData(img, 0, 0);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
@@ -72,14 +90,14 @@ export function SmartMap({ quantity, snapshot, config, pumpOn }: { quantity: Qua
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let m = 1; m < ROOM.lengthM; m++) {
-      const x = Math.round((m / ROOM.lengthM) * W) + 0.5;
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, H);
-    }
-    for (let m = 1; m < ROOM.widthM; m++) {
-      const y = Math.round((m / ROOM.widthM) * H) + 0.5;
+      const y = Math.round((m / ROOM.lengthM) * H) + 0.5;
       ctx.moveTo(0, y);
       ctx.lineTo(W, y);
+    }
+    for (let m = 1; m < ROOM.widthM; m++) {
+      const x = Math.round((m / ROOM.widthM) * W) + 0.5;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
     }
     ctx.stroke();
   }, [field, size, stops]);
@@ -90,16 +108,15 @@ export function SmartMap({ quantity, snapshot, config, pumpOn }: { quantity: Qua
   const loS = vals.length >= 2 ? vals.reduce((a, b) => (b.v < a.v ? b : a)) : null;
 
   return (
-    <>
-      <div className="tvp__map-fit">
-      <div className="tvp__map" ref={stageRef}>
+    <div className="tvp__qv">
+      <div className="tvp__vmap" ref={stageRef}>
         <canvas ref={canvasRef} role="img" aria-label={`Projeção de ${quantity === 'temperature' ? 'temperatura' : 'umidade'} para a estufa inteira`} />
         {pumpOn && (
-          <svg className="tvp__spr tvp__spr--on" viewBox={`0 0 ${ROOM.lengthM} ${ROOM.widthM}`} preserveAspectRatio="none" aria-hidden="true">
+          <svg className="tvp__spr tvp__spr--on" viewBox={`0 0 ${ROOM.widthM} ${ROOM.lengthM}`} preserveAspectRatio="none" aria-hidden="true">
             {config.irrigation.sprinklers.map((s) => (
               <g key={s.id}>
-                <circle className="tvp__spr-area" cx={s.xM} cy={s.yM} r={s.radiusM} vectorEffect="non-scaling-stroke" />
-                <circle className="tvp__spr-head" cx={s.xM} cy={s.yM} r={0.14} vectorEffect="non-scaling-stroke" />
+                <circle className="tvp__spr-area" cx={s.yM} cy={s.xM} r={s.radiusM} vectorEffect="non-scaling-stroke" />
+                <circle className="tvp__spr-head" cx={s.yM} cy={s.xM} r={0.14} vectorEffect="non-scaling-stroke" />
               </g>
             ))}
           </svg>
@@ -108,17 +125,19 @@ export function SmartMap({ quantity, snapshot, config, pumpOn }: { quantity: Qua
           const v = quantity === 'temperature' ? s.reading?.temperatureC : s.reading?.humidityPct;
           const state = s.valid && v !== undefined ? 'ok' : s.ageMs === null ? 'wait' : 'lost';
           return (
-            <div key={s.sensor.id} className={`tvp__pin tvp__pin--${state}`} style={{ left: `${(s.sensor.xM / ROOM.lengthM) * 100}%`, top: `${(s.sensor.yM / ROOM.widthM) * 100}%` }}>
+            <div key={s.sensor.id} className={`tvp__pin tvp__pin--${state}`} style={{ left: `${(s.sensor.yM / ROOM.widthM) * 100}%`, top: `${(s.sensor.xM / ROOM.lengthM) * 100}%` }}>
               <b>{state === 'ok' ? `${fmtNum(v!, u.digits)}${u.suffix}` : state === 'wait' ? 'aguardando' : 'sem sinal'}</b>
               <small>{s.sensor.name}</small>
             </div>
           );
         })}
         {pumpOn && <div className="tvp__map-flag tvp__map-flag--on">Irrigando agora</div>}
-        <span className="tvp__dim tvp__dim--w">{ROOM.lengthM} m</span>
-        <span className="tvp__dim tvp__dim--h">{ROOM.widthM} m</span>
+        <span className="tvp__dim tvp__dim--w">
+          {ROOM.widthM} × {ROOM.lengthM} m
+        </span>
       </div>
-      </div>
+      <div className="tvp__qv-side">
+      {head}
       <ScaleBar quantity={quantity} lo={scale.lo} hi={scale.hi} stops={stops} values={vals.map((x) => x.v)} />
       {hiS && loS && hiS.v - loS.v > 0 && (
         <div className="tvp__insight">
@@ -126,7 +145,9 @@ export function SmartMap({ quantity, snapshot, config, pumpOn }: { quantity: Qua
           {quantity === 'temperature' ? '° mais quente' : ' pontos mais úmido'} que <b>{loS.name}</b>
         </div>
       )}
-    </>
+      {footer}
+      </div>
+    </div>
   );
 }
 
