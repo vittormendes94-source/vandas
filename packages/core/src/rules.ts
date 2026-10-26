@@ -1,6 +1,6 @@
 /**
  * Regras de irrigação definidas pelo dono: quando NÃO irrigar (estufa quente, sol direto forte, horário a evitar).
- * O sistema só AVISA ("Pode irrigar agora?" e alerta se a bomba ligar fora das regras); não comanda a bomba.
+ * A TV mostra "Pode irrigar agora?"; a automação (automation.ts) não liga fora das regras e desliga se a bomba estiver ligada fora delas.
  *
  * Fontes:
  *  - Temperatura: o ponto MAIS QUENTE entre os sensores atualizados da estufa (medido).

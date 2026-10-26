@@ -19,7 +19,7 @@ import {
   trendOf,
   valueTone,
 } from '@orq/core';
-import type { AppConfig, IrrigationAdvice, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, SimpleStatus, Snapshot, Trend, ValueTone } from '@orq/core';
+import type { AppConfig, AutomationStatusDto, IrrigationAdvice, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, SimpleStatus, Snapshot, Trend, ValueTone } from '@orq/core';
 import { SmartMap } from '../components/SmartMap';
 import { Forecast, OutdoorNow, useWeather } from '../components/Weather';
 import { useHistory } from '../hooks/useHistory';
@@ -70,7 +70,11 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
     hours: weather?.data?.hours,
   });
   const badRun = pump.tone === 'on' && advice.state === 'no';
-  const status: SimpleStatus = overrun
+  const lc = data.automation.lastCommand;
+  const offFailed = pump.tone === 'on' && !!lc && lc.action === 'off' && !lc.ok;
+  const status: SimpleStatus = offFailed
+    ? { level: 'bad', headline: 'Não consegui desligar a bomba', details: [`Motivo para desligar: ${lc!.reason}.`, lc!.error ?? 'O Sonoff não respondeu.', 'Confira a bomba no local.'] }
+    : overrun
     ? {
         level: 'bad',
         headline: `Bomba ligada há ${formatIrrigationDuration(runningMs)}`,
@@ -128,7 +132,7 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
           today={today && today.hMin !== null ? [today.hMin, today.hMax!] : null}
           pumpOn={pump.tone === 'on'}
         />
-        <IrrigationColumn pump={pump} summary={data.irrigations} nowMs={nowMs} maxRunMin={config.pump.maxRunMin} overrun={overrun} advice={advice} />
+        <IrrigationColumn pump={pump} summary={data.irrigations} nowMs={nowMs} maxRunMin={config.pump.maxRunMin} overrun={overrun} advice={advice} automation={data.automation} />
       </div>
       <Forecast w={weather} nowMs={nowMs} />
     </main>
@@ -229,7 +233,23 @@ function toneWord(kind: Quantity, tone: ValueTone, fresh: number): string {
   return { ok: 'Dentro da faixa', low: 'Ar seco', high: 'Muito úmido' }[tone];
 }
 
-function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun, advice }: { pump: ReturnType<typeof simplePump>; summary: IrrigationsSummary; nowMs: number; maxRunMin: number; overrun: boolean; advice: IrrigationAdvice }) {
+function IrrigationColumn({
+  pump,
+  summary,
+  nowMs,
+  maxRunMin,
+  overrun,
+  advice,
+  automation,
+}: {
+  pump: ReturnType<typeof simplePump>;
+  summary: IrrigationsSummary;
+  nowMs: number;
+  maxRunMin: number;
+  overrun: boolean;
+  advice: IrrigationAdvice;
+  automation: AutomationStatusDto;
+}) {
   const dayStart = startOfLocalDay(nowMs);
   return (
     <section className="tvp__col tvp__col--irr" aria-label="Irrigação">
@@ -248,6 +268,7 @@ function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun, advice }: 
       </div>
 
       <AdviceCard advice={advice} />
+      <AutomationCard a={automation} />
 
       {pump.tone === 'none' && summary.last.length === 0 ? (
         <div className="tvp__soon">
@@ -260,15 +281,8 @@ function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun, advice }: 
         </div>
       ) : (
         <>
-          <div className="tvp__today">
-            <div>
-              <div className="tvp__today-n">{summary.todayCount}</div>
-              <div className="tvp__small">irrigaç{summary.todayCount === 1 ? 'ão' : 'ões'} hoje</div>
-            </div>
-            <div>
-              <div className="tvp__today-n">{summary.todayCount ? formatIrrigationDuration(summary.todayTotalMs) : '0 min'}</div>
-              <div className="tvp__small">tempo total hoje</div>
-            </div>
+          <div className="tvp__today-line">
+            Hoje: <b>{summary.todayCount}</b> irrigaç{summary.todayCount === 1 ? 'ão' : 'ões'} · <b>{summary.todayCount ? formatIrrigationDuration(summary.todayTotalMs) : '0 min'}</b> no total
           </div>
 
           <div className="tvp__list-title">Últimas irrigações</div>
@@ -276,7 +290,7 @@ function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun, advice }: 
             <div className="tvp__empty">Nenhuma irrigação registrada ainda.</div>
           ) : (
             <ol className="tvp__list">
-              {summary.last.slice(0, 3).map((e) => {
+              {summary.last.slice(0, automation.mode === 'desligado' ? 3 : 2).map((e) => {
                 const start = Date.parse(e.startedAt);
                 const running = e.endedAt === null;
                 return (
@@ -295,6 +309,33 @@ function IrrigationColumn({ pump, summary, nowMs, maxRunMin, overrun, advice }: 
         </>
       )}
     </section>
+  );
+}
+
+/** Automação: modo, o que está fazendo e os horários de hoje. */
+function AutomationCard({ a }: { a: AutomationStatusDto }) {
+  if (a.mode === 'desligado') return null;
+  const title = a.mode === 'automatico' ? 'Irrigação automática' : 'Proteção automática';
+  const failed = a.lastCommand && !a.lastCommand.ok;
+  const line = a.blockedBy ?? (failed ? `Falha ao ${a.lastCommand!.action === 'on' ? 'ligar' : 'desligar'}: ${a.lastCommand!.error}` : a.note);
+  const label = { pendente: '', feito: '✓', adiado: 'adiada', pulado: 'pulada' } as const;
+  return (
+    <div className={`tvp__auto${a.ready ? '' : ' tvp__auto--wait'}${failed ? ' tvp__auto--fail' : ''}`}>
+      <div className="tvp__auto-title">
+        <span className="tvp__auto-dot" aria-hidden="true" />
+        {title}
+      </div>
+      {line && <div className="tvp__auto-note">{line}</div>}
+      {a.slots.length > 0 && (
+        <div className="tvp__auto-slots">
+          {a.slots.map((s) => (
+            <span key={s.time} className={`tvp__slot tvp__slot--${s.status}`} title={s.detail ?? undefined}>
+              {s.time} {label[s.status]}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -23,6 +23,7 @@ import { LineChart } from '../components/LineChart';
 import type { ChartSeries } from '../components/LineChart';
 import { PeriodCard } from '../components/Indicators';
 import { IrrigationHistory } from '../components/IrrigationHistory';
+import { AutomationHistory } from '../components/AutomationHistory';
 import { Chip, MeasuredChip, Notice } from '../components/ui';
 import { useHistory } from '../hooks/useHistory';
 import { api } from '../lib/api';
@@ -250,6 +251,7 @@ export function History({ config, nowMs }: { config: AppConfig | null; nowMs: nu
       ))}
 
       <IrrigationHistory range={range} nowMs={nowMs} />
+      <AutomationHistory range={range} />
 
       <section className="card" aria-label="Lacunas">
         <div className="card__head">

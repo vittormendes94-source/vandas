@@ -94,6 +94,28 @@ export interface IntegrationStatusDto {
   ingestAuthConfigured: boolean;
 }
 
+export interface AutomationStatusDto {
+  mode: 'desligado' | 'protecao' | 'automatico';
+  /** Pronta para agir: conta eWeLink conectada e Sonoff da bomba vinculado. */
+  ready: boolean;
+  /** O que falta para a automação poder agir. */
+  blockedBy: string | null;
+  /** O que a automação está fazendo/esperando (última rodada). */
+  note: string | null;
+  /** Horários de hoje e o que aconteceu em cada um. */
+  slots: { time: string; status: 'pendente' | 'feito' | 'pulado' | 'adiado'; detail: string | null }[];
+  lastCommand: { at: string; action: 'on' | 'off'; reason: string; ok: boolean; error: string | null } | null;
+  inching: { widthMs: number; at: string } | null;
+}
+
+export interface AutomationLogEntryDto {
+  at: string;
+  action: 'on' | 'off' | 'inching';
+  reason: string;
+  ok: boolean;
+  error: string | null;
+}
+
 export interface LiveResponse {
   /** Hora do servidor no momento da resposta. A idade das leituras é calculada contra este instante. */
   serverTime: string;
@@ -104,6 +126,7 @@ export interface LiveResponse {
   pump: PumpDto;
   /** Últimas irrigações (períodos com a bomba ligada) e o total de hoje. */
   irrigations: IrrigationsSummary;
+  automation: AutomationStatusDto;
   integration: IntegrationStatusDto;
 }
 

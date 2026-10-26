@@ -7,7 +7,7 @@ Monitoramento ambiental de um orquidário de vandas de **12 × 5 m (60 m²)**:
 - **Histórico e exportação:** histórico persistente, replay e CSV.
 - **Acesso:** link online para TV, celular e computador.
 
-**Somente dados reais.** Não há simulador. Sem leitura, a tela mostra "aguardando". Esta versão só monitora: nenhum comando é enviado aos aparelhos.
+**Somente dados reais.** Não há simulador. Sem leitura, a tela mostra "aguardando". A bomba pode ser automatizada (Configurações → Automação da bomba): horários, regras de quando não irrigar e desligamento automático; cada ação é registrada.
 
 ## Como os dados chegam
 
