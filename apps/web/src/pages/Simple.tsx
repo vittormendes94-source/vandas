@@ -271,6 +271,8 @@ function IrrigationColumn({
       <AutomationCard a={automation} />
 
       {pump.tone === 'none' && summary.last.length === 0 ? (
+        // Com a automação ligada, o cartão dela já diz o que falta; a lista só aparece no modo desligado.
+        automation.mode === 'desligado' && (
         <div className="tvp__soon">
           <div className="tvp__list-title">Quando a bomba for conectada, aparece aqui</div>
           <ul>
@@ -279,6 +281,7 @@ function IrrigationColumn({
             <li>horário e duração das últimas irrigações</li>
           </ul>
         </div>
+        )
       ) : (
         <>
           <div className="tvp__today-line">
@@ -347,7 +350,7 @@ function AdviceCard({ advice }: { advice: IrrigationAdvice }) {
     advice.state === 'no'
       ? advice.reasons
       : advice.state === 'ok'
-        ? [advice.missing.length ? `Avaliado sem: ${advice.missing.join(', ')}` : 'Temperatura e sol dentro das regras']
+        ? [advice.missing.length ? `Dentro das regras que deu para avaliar (${advice.missing.join(', ')})` : 'Temperatura e sol dentro das regras']
         : [advice.missing.join(' · ') || 'Nenhuma regra definida em Configurações'];
   const next = advice.state !== 'no' ? null : advice.nextGood ? `Próximo horário bom: ${advice.nextGood}` : advice.reasons.every((r) => r.startsWith('Estufa')) ? 'Aguarde a estufa esfriar' : null;
   return (
