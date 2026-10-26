@@ -87,11 +87,19 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
   return (
     <main className="tvp">
       <header className={`tvp__status tvp__status--${status.level}`} role="status">
-        <div className="tvp__status-icon" aria-hidden="true">
-          <StatusIcon level={status.level} />
+        <div className="tvp__logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 21V11M12 11c0-4 2.5-6.5 7-7-.2 4.6-2.8 7-7 7zM12 14c0-3-2-5-6.5-5.5C5.8 12 8 14 12 14z" />
+          </svg>
         </div>
         <div className="tvp__status-text">
-          <div className="tvp__headline">{status.headline}</div>
+          <div className="tvp__brand">Orquidário Inteligente</div>
+          <div className="tvp__headline">
+            <span className="tvp__status-icon" aria-hidden="true">
+              <StatusIcon level={status.level} />
+            </span>
+            {status.headline}
+          </div>
           <div className="tvp__details">
             {status.details.slice(0, 2).map((d) => (
               <span key={d}>{d}</span>
@@ -204,11 +212,11 @@ function QuantityColumn(p: {
         </div>
       ) : (
         <div className="tvp__spark-box">
-          <Spark points={p.line.filter((x) => x.t >= sparkFrom)} from={sparkFrom} to={p.to} color={p.quantity === 'temperature' ? 'var(--tvp-temp)' : 'var(--tvp-hum)'} />
+          <Spark points={p.line.filter((x) => x.t >= sparkFrom)} from={sparkFrom} to={p.to} color={p.quantity === 'temperature' ? '#ff9f43' : '#38b6ff'} suffix={u.suffix} digits={u.digits} />
           <div className="tvp__spark-axis" aria-hidden="true">
             <span>{formatTime(sparkFrom)}</span>
             <span>{formatTime((sparkFrom + p.to) / 2)}</span>
-            <span>agora</span>
+            <span>agora →</span>
           </div>
           <div className="tvp__spark-label">
             <span>Média dos sensores · últimas {sparkHours} h</span>
@@ -385,9 +393,33 @@ function AdviceCard({ advice }: { advice: IrrigationAdvice }) {
 }
 
 /** Linha das últimas 24 h (média dos sensores). Trechos sem todos os sensores ficam em branco, como no painel. */
-function Spark({ points, from, to, color }: { points: MeanPoint[]; from: number; to: number; color: string }) {
-  if (points.length < 2 || to <= from) return <div className="tvp__spark tvp__spark--empty">sem dados nas últimas 24 h</div>;
-  const vs = points.map((p) => p.v);
+/**
+ * Linha das últimas horas (média dos sensores), suavizada, com tendência e projeção.
+ * Tendência: reta de mínimos quadrados sobre as últimas 3 h; projeção: essa reta estendida por até 2 h,
+ * tracejada. É uma extrapolação simples (não considera sol, chuva ou irrigação).
+ */
+function Spark({ points, from, to, color, suffix, digits }: { points: MeanPoint[]; from: number; to: number; color: string; suffix: string; digits: number }) {
+  if (points.length < 2 || to <= from) return <div className="tvp__spark tvp__spark--empty">sem dados ainda</div>;
+  // média móvel de 3 pontos
+  const sm = points.map((p, i) => {
+    const w = points.slice(Math.max(0, i - 1), i + 2);
+    return { t: p.t, v: w.reduce((a, b) => a + b.v, 0) / w.length };
+  });
+  // tendência das últimas 3 h
+  const recent = sm.filter((p) => p.t >= to - 3 * HOUR);
+  let slope = 0;
+  if (recent.length >= 3) {
+    const mt = recent.reduce((a, p) => a + p.t, 0) / recent.length;
+    const mv = recent.reduce((a, p) => a + p.v, 0) / recent.length;
+    const num = recent.reduce((a, p) => a + (p.t - mt) * (p.v - mv), 0);
+    const den = recent.reduce((a, p) => a + (p.t - mt) ** 2, 0);
+    slope = den > 0 ? num / den : 0;
+  }
+  const horizon = Math.max(30 * MIN, Math.min(2 * HOUR, (to - from) / 3));
+  const last = sm[sm.length - 1]!;
+  const end = to + horizon;
+  const projected = last.v + slope * (end - last.t);
+  const vs = [...sm.map((p) => p.v), projected];
   let lo = Math.min(...vs);
   let hi = Math.max(...vs);
   if (hi - lo < 1) {
@@ -397,17 +429,48 @@ function Spark({ points, from, to, color }: { points: MeanPoint[]; from: number;
   }
   const W = 300;
   const H = 60;
-  const x = (t: number) => ((t - from) / (to - from)) * W;
-  const y = (v: number) => H - 4 - ((v - lo) / (hi - lo)) * (H - 8);
+  const x = (t: number) => ((t - from) / (end - from)) * W;
+  const y = (v: number) => H - 6 - ((v - lo) / (hi - lo)) * (H - 12);
+  // curva suave (Catmull-Rom → Bézier), quebrando em lacunas > 45 min
   let d = '';
-  points.forEach((p, i) => {
-    const gap = i > 0 && p.t - points[i - 1]!.t > 45 * MIN;
-    d += `${i === 0 || gap ? 'M' : 'L'}${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)} `;
+  sm.forEach((p, i) => {
+    const gap = i > 0 && p.t - sm[i - 1]!.t > 45 * MIN;
+    if (i === 0 || gap) {
+      d += `M${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)} `;
+      return;
+    }
+    const p0 = sm[Math.max(0, i - 2)]!;
+    const p1 = sm[i - 1]!;
+    const p3 = sm[Math.min(sm.length - 1, i + 1)]!;
+    const c1x = x(p1.t) + (x(p.t) - x(p0.t)) / 6;
+    const c1y = y(p1.v) + (y(p.v) - y(p0.v)) / 6;
+    const c2x = x(p.t) - (x(p3.t) - x(p1.t)) / 6;
+    const c2y = y(p.v) - (y(p3.v) - y(p1.v)) / 6;
+    d += `C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)} `;
   });
+  const fill = `${d}L${x(last.t).toFixed(1)} ${H} L${x(sm[0]!.t).toFixed(1)} ${H} Z`;
+  const gid = `g${color.replace(/[^a-z]/gi, '')}`;
   return (
-    <svg className="tvp__spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      <path d={d} fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
+    <div className="tvp__spark-wrap">
+      <svg className="tvp__spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={color} stopOpacity="0.35" />
+            <stop offset="1" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <rect x={x(to)} y="0" width={W - x(to)} height={H} fill="rgba(255,255,255,0.035)" />
+        <line x1={x(to)} x2={x(to)} y1="0" y2={H} stroke="rgba(255,255,255,0.25)" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
+        <path d={fill} fill={`url(#${gid})`} stroke="none" />
+        <path d={d} fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <line x1={x(last.t)} y1={y(last.v)} x2={x(end)} y2={y(projected)} stroke={color} strokeWidth="2.5" strokeDasharray="6 5" opacity="0.8" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span className="tvp__spark-proj" style={{ top: `${(y(projected) / H) * 100}%` }}>
+        {fmtNum(projected, digits)}
+        {suffix}
+      </span>
+      <span className="tvp__spark-future">previsão {Math.round(horizon / MIN) >= 60 ? `${Math.round(horizon / HOUR)} h` : `${Math.round(horizon / MIN)} min`}</span>
+    </div>
   );
 }
 
