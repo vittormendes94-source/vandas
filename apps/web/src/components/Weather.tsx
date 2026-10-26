@@ -141,6 +141,9 @@ export function Forecast({ w, nowMs }: { w: WeatherResponse | null; nowMs: numbe
           <span className="tvp__fc-key tvp__fc-key--wet">
             <i aria-hidden="true" /> chuva provável
           </span>
+          <span className="tvp__fc-key tvp__fc-key--maybe">
+            <i aria-hidden="true" /> chuva possível
+          </span>
           <span className="tvp__fc-key tvp__fc-key--sun">
             <i aria-hidden="true" /> sol / calor
           </span>
@@ -149,11 +152,13 @@ export function Forecast({ w, nowMs }: { w: WeatherResponse | null; nowMs: numbe
       <ol className="tvp__fc-days">
         {days.map((d) => {
           const k = weatherKind(d.code);
-          // Azul: chuva provável. Laranja claro: dia de sol (sem chuva provável) ou quente (máxima ≥ 30 °C).
+          // Azul: chuva provável. Laranja claro: dia de sol ou quente (máxima ≥ 30 °C), sem chuva.
           const wet = (d.rainProb ?? 0) >= 60 || (d.rainMm ?? 0) >= 5;
-          const sunny = !wet && (k.kind === 'clear' || k.kind === 'partly' || (d.tMax ?? 0) >= 30);
+          // Azul-claro: chuva possível (chance ≥ 30% ou ≥ 1 mm).
+          const maybe = !wet && ((d.rainProb ?? 0) >= 30 || (d.rainMm ?? 0) >= 1);
+          const sunny = !wet && !maybe && (k.kind === 'clear' || k.kind === 'partly' || (d.tMax ?? 0) >= 30);
           return (
-            <li key={d.date} className={wet ? 'tvp__fc-wet' : sunny ? 'tvp__fc-sun' : undefined} title={k.label}>
+            <li key={d.date} className={wet ? 'tvp__fc-wet' : maybe ? 'tvp__fc-maybe' : sunny ? 'tvp__fc-sun' : undefined} title={k.label}>
               <span className="tvp__fc-day">{weatherDayLabel(d.date, today)}</span>
               <WeatherIcon kind={k.kind} className="tvp__fc-icon" />
               <span className="tvp__fc-temp">

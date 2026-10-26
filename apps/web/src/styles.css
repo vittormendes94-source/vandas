@@ -453,7 +453,12 @@ html.tv button, html.tv a { cursor: pointer; }
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px calc(100% / 5)),
     radial-gradient(ellipse at 50% 40%, #12202a, #0a1218 75%);
 }
-.tvp__map canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tvp__map canvas,
+.tvp__vmap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Croqui em pé (5 m × 12 m) à esquerda; números, escala e gráfico à direita. */
+.tvp__qv { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: clamp(10px, 1vw, 24px); }
+.tvp__vmap { position: relative; height: 100%; aspect-ratio: 5 / 12; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--line-2); background: #0a1218; }
+.tvp__qv-side { display: flex; flex-direction: column; gap: clamp(8px, 0.8vw, 18px); min-width: 0; min-height: 0; }
 .tvp__spr { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .tvp__spr-area { fill: rgba(56, 182, 255, 0.05); stroke: rgba(143, 211, 255, 0.28); stroke-width: 1; }
 .tvp__spr-head { fill: rgba(143, 211, 255, 0.7); stroke: none; }
@@ -617,6 +622,9 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__fc-key--sun { color: #ffc98a; }
 .tvp__fc-key--sun i { background: rgba(255, 159, 67, 0.3); outline: 1px solid rgba(255, 190, 120, 0.6); }
 .tvp__fc-wet { background: rgba(56, 182, 255, 0.14) !important; outline: 1px solid rgba(143, 211, 255, 0.45); }
+.tvp__fc-maybe { background: rgba(56, 182, 255, 0.07) !important; outline: 1px dashed rgba(143, 211, 255, 0.45); }
+.tvp__fc-key--maybe { color: #b9e2ff; }
+.tvp__fc-key--maybe i { background: rgba(56, 182, 255, 0.12); outline: 1px dashed rgba(143, 211, 255, 0.6); }
 .tvp__fc-sun { background: rgba(255, 159, 67, 0.13) !important; outline: 1px solid rgba(255, 190, 120, 0.4); }
 .tvp__fc-sun .tvp__fc-rain { color: #ffc98a; }
 
@@ -627,10 +635,6 @@ html.tv button, html.tv a { cursor: pointer; }
 }
 /* Telas largas e baixas (notebook): o mapa tem prioridade; gráfico de 24 h e lista ficam no Painel completo/Histórico. */
 @media (min-width: 1100px) and (max-height: 1000px) {
-  /* O mapa ocupa o espaço que sobrar na coluna, do maior tamanho possível sem deformar (12 × 5). */
-  .tvp__map-fit { flex: 1 1 0; min-height: 110px; display: flex; align-items: center; justify-content: center; container-type: size; }
-  .tvp__map { width: 100%; width: min(100cqw, 240cqh); }
-  .tvp__spark-box,
   .tvp__col--irr .tvp__list-title,
   .tvp__col--irr .tvp__list,
   .tvp__col--irr .tvp__empty,
@@ -646,6 +650,8 @@ html.tv button, html.tv a { cursor: pointer; }
   .tvp__out { grid-column: 1 / -1; }
   .tvp__fc { grid-template-columns: 1fr; }
   .tvp__fc-days { grid-template-columns: 1fr; gap: 0.3em; }
+  .tvp__qv { grid-template-columns: 40% minmax(0, 1fr); grid-template-rows: auto; }
+  .tvp__vmap { height: auto; width: 100%; }
   .tvp__fc-days li { grid-template-columns: 4.5em 2.2em 1fr auto; grid-template-areas: 'day icon temp rain'; }
   .tvp__fc-icon { width: 2em; height: 2em; }
   .tvp__clock { align-items: flex-start; text-align: left; }
