@@ -1,3 +1,4 @@
+import type { IrrigationDto, IrrigationsSummary } from './irrigation';
 import type { AppConfig, Bucket, HistoryResolution, Reading } from './types';
 import type { PumpComm, PumpState } from './pump';
 
@@ -101,7 +102,16 @@ export interface LiveResponse {
   latest: Record<string, ReadingDto | null>;
   links: Record<string, SensorLinkDto>;
   pump: PumpDto;
+  /** Últimas irrigações (períodos com a bomba ligada) e o total de hoje. */
+  irrigations: IrrigationsSummary;
   integration: IntegrationStatusDto;
+}
+
+export interface IrrigationsResponse {
+  from: string;
+  to: string;
+  events: IrrigationDto[];
+  truncated: boolean;
 }
 
 /** Dispositivo encontrado numa integração (eWeLink ou Zigbee2MQTT), para vincular sensores e bomba em Configurações. */

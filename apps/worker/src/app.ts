@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { ZodError } from 'zod';
-import { ConfigUpdateSchema, IngestReadingsBodySchema, ZigbeeIngestBodySchema, derivePumpStatus, iso, isoOrNull, prepareReadings, readingToDto } from '@orq/core';
+import { ConfigUpdateSchema, IngestReadingsBodySchema, ZigbeeIngestBodySchema, iso, isoOrNull, prepareReadings, readingToDto, startOfLocalDay, summarizeIrrigations } from '@orq/core';
 import type { HistoryResponse, LiveResponse, ProviderDeviceDto, ReadingOutcome, SensorLinkDto } from '@orq/core';
 import { requireAdmin, requireIngest, requireView } from './auth';
 import type { Env } from './env';
@@ -20,6 +20,7 @@ import {
   saveConfig,
 } from './repo';
 import { collectorStatusDto, ingestZigbee } from './zigbee';
+import { listIrrigations, pumpStatusOf, recentIrrigations, trackPumpFromDb } from './irrigation';
 import { pollSwitchbot, switchbotStatusDto } from './switchbot';
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -67,12 +68,13 @@ app.get('/api/meta', (c) => c.json({ viewProtected: !!c.env.VIEW_TOKEN, writeAut
 app.get('/api/live', requireView, async (c) => {
   const now = Date.now();
   const config = await getConfig(c.env.DB);
-  const [latest, devices, ewelink, collector, switchbot] = await Promise.all([
+  const [latest, devices, ewelink, collector, switchbot, irrigations] = await Promise.all([
     latestReadings(c.env.DB, config.sensors.map((s) => s.id)),
     listAllProviderDevices(c.env.DB),
     statusDto(c.env, c.env.DB, now),
     collectorStatusDto(c.env.DB),
     switchbotStatusDto(c.env, c.env.DB, now),
+    listIrrigations(c.env.DB, Math.min(startOfLocalDay(now), now - 7 * 86_400_000), now, 200),
   ]);
   const byId = new Map(devices.map((d) => [d.deviceId, d]));
   const ewelinkById = new Map(devices.filter((d) => d.provider === PROVIDER).map((d) => [d.deviceId, d]));
@@ -82,14 +84,14 @@ app.get('/api/live', requireView, async (c) => {
     links[s.id] = { provider: d?.provider ?? null, deviceId: s.externalId ?? null, deviceName: d?.name ?? null, online: d?.online ?? null, seenAt: isoOrNull(d?.seenAt) };
   }
   const pd = config.pump.deviceId ? ewelinkById.get(config.pump.deviceId) : undefined;
-  const channel = pd?.switches ? (pd.switches[config.pump.outlet] ?? null) : (pd?.switchState ?? null);
-  const pump = derivePumpStatus({ linked: !!config.pump.deviceId, seenAt: pd?.seenAt ?? null, online: pd?.online ?? null, switchState: pd?.kind === 'switch' ? channel : null }, now);
+  const pump = pumpStatusOf(config, pd, now);
   const body: LiveResponse = {
     serverTime: iso(now),
     config,
     latest: Object.fromEntries([...latest].map(([id, r]) => [id, r ? readingToDto(r) : null])),
     links,
     pump: { comm: pump.comm, state: pump.state, seenAt: isoOrNull(pump.seenAt), deviceName: pd?.name ?? null },
+    irrigations: summarizeIrrigations(irrigations.length ? irrigations : await recentIrrigations(c.env.DB, 5), startOfLocalDay(now)),
     integration: { switchbot, ewelink, collector, writeAuthConfigured: !!c.env.ADMIN_TOKEN, ingestAuthConfigured: !!c.env.INGEST_TOKEN },
   };
   return c.json(body);
@@ -178,7 +180,21 @@ app.get('/api/ewelink/callback', async (c) => {
 app.post('/api/switchbot/poll', requireAdmin, async (c) => c.json(await pollSwitchbot(c.env, c.env.DB, await getConfig(c.env.DB), Date.now(), { force: true })));
 
 /** Lê o eWeLink agora (além da leitura automática). */
-app.post('/api/ewelink/poll', requireAdmin, async (c) => c.json(await pollEwelink(c.env, c.env.DB, await getConfig(c.env.DB), Date.now(), { force: true })));
+app.post('/api/ewelink/poll', requireAdmin, async (c) => {
+  const config = await getConfig(c.env.DB);
+  const r = await pollEwelink(c.env, c.env.DB, config, Date.now(), { force: true });
+  await trackPumpFromDb(c.env.DB, config, PROVIDER, Date.now());
+  return c.json(r);
+});
+
+/** Irrigações (períodos com a bomba ligada) que começaram no intervalo. Máx. 400 dias e 2000 registros. */
+app.get('/api/irrigations', requireView, async (c) => {
+  const from = parseInstant(c.req.query('from'), 'from');
+  const to = parseInstant(c.req.query('to'), 'to');
+  if (to <= from || to - from > 400 * 86_400_000) throw new HttpError(400, 'invalid_range', 'Intervalo inválido (máx. 400 dias).');
+  const events = await listIrrigations(c.env.DB, from, to, 2001);
+  return c.json({ from: iso(from), to: iso(to), events: events.slice(0, 2000), truncated: events.length > 2000 });
+});
 
 app.post('/api/ewelink/disconnect', requireAdmin, async (c) => {
   await disconnect(c.env.DB, Date.now());

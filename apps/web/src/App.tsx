@@ -11,10 +11,12 @@ import { About } from './pages/About';
 import { Dashboard } from './pages/Dashboard';
 import { History } from './pages/History';
 import { Settings } from './pages/Settings';
+import { Simple } from './pages/Simple';
 import { buildSnapshot } from '@orq/core';
 import type { Reading } from '@orq/core';
 
 const NAV: { id: Route; label: string }[] = [
+  { id: 'simples', label: 'Visão TV' },
   { id: 'painel', label: 'Painel' },
   { id: 'historico', label: 'Histórico' },
   { id: 'config', label: 'Configurações' },
@@ -80,8 +82,13 @@ export function App() {
   }
   if (!meta) return <div className="empty">Carregando…</div>;
 
-  const activeRoute: Route = tv ? 'painel' : route;
+  // Modo TV: painel da TV por padrão; o painel técnico continua disponível em ?tv=1#/painel.
+  const activeRoute: Route = tv ? (route === 'painel' ? 'painel' : 'simples') : route;
   const staleRefresh = live.error !== null;
+
+  if (activeRoute === 'simples' && live.error?.status !== 401) {
+    return <Simple live={live} nowMs={nowMs} onFull={() => go('painel')} />;
+  }
 
   return (
     <>
