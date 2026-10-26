@@ -129,6 +129,7 @@ export function SmartMap({ quantity, snapshot, config, pumpOn }: { quantity: Qua
 
   return (
     <>
+      <div className="tvp__map-fit">
       <div className="tvp__map" ref={stageRef}>
         <canvas ref={canvasRef} role="img" aria-label={`Projeção de ${quantity === 'temperature' ? 'temperatura' : 'umidade'} para a estufa inteira`} />
         {pumpOn && (
@@ -152,6 +153,7 @@ export function SmartMap({ quantity, snapshot, config, pumpOn }: { quantity: Qua
           );
         })}
         {pumpOn && <div className="tvp__map-flag tvp__map-flag--on">Irrigando agora</div>}
+      </div>
       </div>
       <Legend quantity={quantity} band={band} stops={stops} values={vals.map((x) => x.v)} />
       {hiS && loS && hiS.v - loS.v > 0 && (
