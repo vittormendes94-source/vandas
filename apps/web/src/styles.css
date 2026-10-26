@@ -359,7 +359,7 @@ html.tv button, html.tv a { cursor: pointer; }
   flex-direction: column;
   gap: var(--tvp-pad);
   padding: var(--tvp-pad);
-  font-size: clamp(14px, 1.05vw, 26px);
+  font-size: clamp(13px, 0.9vw, 22px);
 }
 .tvp--loading { align-items: center; justify-content: center; color: var(--dim); font-size: 1.4rem; }
 .tvp__status {
@@ -378,8 +378,8 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__status--bad { border-left-color: var(--red); background: linear-gradient(90deg, rgba(255, 107, 107, 0.2), var(--card) 55%); }
 .tvp__status--setup { border-left-color: var(--cyan); background: linear-gradient(90deg, rgba(56, 214, 230, 0.1), var(--card) 55%); }
 .tvp__status-icon {
-  width: clamp(44px, 3.6vw, 90px);
-  height: clamp(44px, 3.6vw, 90px);
+  width: clamp(38px, 2.8vw, 70px);
+  height: clamp(38px, 2.8vw, 70px);
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -393,15 +393,15 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__status--bad .tvp__status-icon { background: var(--red); }
 .tvp__status--setup .tvp__status-icon { background: rgba(56, 214, 230, 0.16); color: var(--cyan); }
 .tvp__status-icon svg { width: 60%; height: 60%; }
-.tvp__headline { font-size: clamp(22px, 2.2vw, 56px); font-weight: 750; line-height: 1.1; }
-.tvp__details { display: flex; flex-wrap: wrap; gap: 0.2em 1.4em; color: var(--dim); margin-top: 0.25em; font-size: clamp(13px, 0.95vw, 24px); }
+.tvp__headline { font-size: clamp(20px, 1.7vw, 44px); font-weight: 750; line-height: 1.1; }
+.tvp__details { display: flex; flex-wrap: wrap; gap: 0.2em 1.4em; color: var(--dim); margin-top: 0.25em; font-size: clamp(12px, 0.8vw, 20px); }
 .tvp__right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3em; text-align: right; }
 .tvp__clock { display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
-.tvp__time { font-size: clamp(28px, 2.8vw, 72px); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tvp__time { font-size: clamp(26px, 2.2vw, 56px); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .tvp__date { color: var(--dim); font-size: clamp(12px, 0.85vw, 22px); margin-top: 0.3em; }
 .tvp__updated { color: var(--mute); font-size: clamp(12px, 0.8vw, 20px); }
 
-.tvp__cols { display: grid; grid-template-columns: 1fr 1fr 0.78fr; gap: var(--tvp-pad); flex: 1; min-height: 0; }
+.tvp__cols { display: grid; grid-template-columns: 1fr 1fr 0.55fr; gap: var(--tvp-pad); flex: 1; min-height: 0; }
 .tvp__col {
   display: flex;
   flex-direction: column;
@@ -409,7 +409,7 @@ html.tv button, html.tv a { cursor: pointer; }
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: clamp(12px, 1.2vw, 28px);
+  padding: clamp(10px, 0.9vw, 22px);
   border-radius: var(--radius);
   background: var(--card);
   border: 1px solid var(--line);
@@ -417,22 +417,22 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__col--temperature { border-top: 4px solid var(--tvp-temp); }
 .tvp__col--humidity { border-top: 4px solid var(--tvp-hum); }
 .tvp__col--irr { border-top: 4px solid var(--cyan); }
-.tvp__label { display: flex; align-items: center; gap: 0.45em; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--dim); font-size: clamp(13px, 0.95vw, 24px); }
+.tvp__label { display: flex; align-items: center; gap: 0.45em; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--dim); font-size: clamp(12px, 0.78vw, 20px); }
 .tvp__value-row { display: flex; align-items: baseline; gap: 0.5em; flex-wrap: wrap; }
-.tvp__value { font-size: clamp(54px, 4.6vw, 120px); font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.tvp__value { font-size: clamp(44px, 3.4vw, 88px); font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .tvp__label-icon { width: 1.35em; height: 1.35em; flex: none; }
 .tvp__col--temperature .tvp__label-icon { color: var(--tvp-temp); }
 .tvp__col--humidity .tvp__label-icon { color: var(--tvp-hum); }
 .tvp__col--irr .tvp__label-icon { color: var(--cyan); }
 .tvp__value--empty { color: rgba(255, 255, 255, 0.16); }
 .tvp__value--lost { color: var(--amber); }
-.tvp__word { font-size: clamp(16px, 1.25vw, 32px); font-weight: 600; color: var(--dim); }
+.tvp__word { font-size: clamp(14px, 0.95vw, 24px); font-weight: 600; color: var(--dim); }
 .tone-temperature-ok, .tone-humidity-ok { color: var(--green); }
 .tone-temperature-high { color: #ff7a59; }
 .tone-temperature-low { color: #6fb6ff; }
 .tone-humidity-low { color: var(--amber); }
 .tone-humidity-high { color: #6fb6ff; }
-.tvp__trend { display: inline-flex; align-items: center; gap: 0.35em; padding: 0.2em 0.6em; border-radius: 999px; background: var(--card-2); color: var(--dim); font-size: clamp(14px, 1.05vw, 26px); font-weight: 600; }
+.tvp__trend { display: inline-flex; align-items: center; gap: 0.35em; padding: 0.2em 0.6em; border-radius: 999px; background: var(--card-2); color: var(--dim); font-size: clamp(12px, 0.85vw, 22px); font-weight: 600; }
 .tvp__trend-arrow { font-size: 1.35em; line-height: 1; }
 .tvp__col--temperature .tvp__trend--up .tvp__trend-arrow { color: #ff7a59; }
 .tvp__col--temperature .tvp__trend--down .tvp__trend-arrow { color: #6fb6ff; }
@@ -504,15 +504,15 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__spark-label b { color: var(--text); }
 
 .tvp__pump { display: flex; align-items: center; gap: 0.7em; padding: clamp(10px, 1vw, 24px); border-radius: var(--radius-sm); background: var(--card-2); }
-.tvp__pump-icon { width: clamp(46px, 3.8vw, 100px); height: clamp(46px, 3.8vw, 100px); flex: none; color: var(--mute); }
+.tvp__pump-icon { width: clamp(32px, 2.4vw, 64px); height: clamp(32px, 2.4vw, 64px); flex: none; color: var(--mute); }
 .tvp__pump--on { background: linear-gradient(90deg, rgba(56, 182, 255, 0.25), var(--card-2)); }
 .tvp__pump--on .tvp__pump-icon { color: #8fd3ff; animation: tvp-pulse 1.8s ease-in-out infinite; }
 .tvp__pump--off .tvp__pump-icon { color: var(--dim); }
 .tvp__pump--unknown .tvp__pump-icon { color: var(--amber); }
-.tvp__pump-label { font-size: clamp(22px, 2vw, 52px); font-weight: 800; line-height: 1.05; }
+.tvp__pump-label { font-size: clamp(17px, 1.35vw, 36px); font-weight: 800; line-height: 1.05; }
 .tvp__pump--on .tvp__pump-label { color: #8fd3ff; }
 .tvp__pump--unknown .tvp__pump-label { color: var(--amber); }
-.tvp__pump--none .tvp__pump-label { font-size: clamp(18px, 1.3vw, 34px); color: var(--dim); }
+.tvp__pump--none .tvp__pump-label { font-size: clamp(15px, 1.05vw, 28px); color: var(--dim); }
 .tvp__pump--none .tvp__pump-icon { width: clamp(36px, 2.8vw, 72px); height: clamp(36px, 2.8vw, 72px); opacity: 0.6; }
 .tvp__soon { display: flex; flex-direction: column; gap: 0.5em; }
 .tvp__soon ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.4em; }
@@ -524,7 +524,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__today-n { font-size: clamp(20px, 1.6vw, 44px); font-weight: 800; font-variant-numeric: tabular-nums; }
 .tvp__list-title { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--dim); font-size: clamp(12px, 0.85vw, 22px); margin-top: 0.3em; }
 .tvp__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35em; }
-.tvp__list li { display: flex; align-items: baseline; gap: 0.8em; flex-wrap: wrap; padding: 0.35em 0.7em; border-radius: var(--radius-sm); background: var(--card-2); font-size: clamp(15px, 1.15vw, 30px); }
+.tvp__list li { display: flex; align-items: baseline; gap: 0.8em; flex-wrap: wrap; padding: 0.35em 0.7em; border-radius: var(--radius-sm); background: var(--card-2); font-size: clamp(13px, 0.92vw, 24px); }
 .tvp__list-when { font-weight: 700; font-variant-numeric: tabular-nums; }
 .tvp__list-dur { color: var(--dim); margin-left: auto; }
 .tvp__list-running { outline: 2px solid #8fd3ff; }
@@ -535,9 +535,9 @@ html.tv button, html.tv a { cursor: pointer; }
 
 /* Lá fora agora (topo) */
 .tvp__out { display: flex; align-items: center; gap: 0.6em; padding: 0.35em 1.1em 0.35em 0.6em; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.04); }
-.tvp__out-icon { width: clamp(40px, 3.4vw, 86px); height: clamp(40px, 3.4vw, 86px); flex: none; }
+.tvp__out-icon { width: clamp(34px, 2.6vw, 66px); height: clamp(34px, 2.6vw, 66px); flex: none; }
 .tvp__out-values { display: flex; align-items: baseline; gap: 0.5em; line-height: 1; }
-.tvp__out-values b { font-size: clamp(26px, 2.4vw, 62px); font-weight: 750; font-variant-numeric: tabular-nums; }
+.tvp__out-values b { font-size: clamp(22px, 1.8vw, 46px); font-weight: 750; font-variant-numeric: tabular-nums; }
 .tvp__out-values span { font-size: clamp(15px, 1.15vw, 30px); color: var(--dim); font-weight: 600; }
 .tvp__out-label { color: var(--mute); font-size: clamp(12px, 0.8vw, 20px); margin-top: 0.25em; }
 
@@ -554,8 +554,8 @@ html.tv button, html.tv a { cursor: pointer; }
 
 /* Pode irrigar agora? */
 .tvp__advice { display: flex; align-items: center; gap: 0.7em; padding: clamp(8px, 0.8vw, 18px) clamp(10px, 1vw, 24px); border-radius: var(--radius-sm); background: var(--card-2); border-left: 5px solid var(--mute); }
-.tvp__advice-icon { width: clamp(30px, 2.4vw, 60px); height: clamp(30px, 2.4vw, 60px); flex: none; padding: 0.35em; border-radius: 50%; }
-.tvp__advice-title { font-size: clamp(17px, 1.35vw, 34px); font-weight: 750; line-height: 1.1; }
+.tvp__advice-icon { width: clamp(26px, 1.9vw, 48px); height: clamp(26px, 1.9vw, 48px); flex: none; padding: 0.35em; border-radius: 50%; }
+.tvp__advice-title { font-size: clamp(15px, 1.05vw, 28px); font-weight: 750; line-height: 1.1; }
 .tvp__advice-detail { color: var(--dim); font-size: clamp(12px, 0.85vw, 22px); margin-top: 0.15em; }
 .tvp__advice-next { font-weight: 700; font-size: clamp(13px, 0.92vw, 23px); margin-top: 0.2em; color: var(--text); }
 .tvp__advice--ok { border-left-color: var(--green); }
@@ -579,7 +579,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__slot--feito { background: rgba(61, 220, 151, 0.16); color: var(--green); }
 .tvp__slot--adiado { background: rgba(245, 185, 66, 0.16); color: var(--amber); }
 .tvp__slot--pulado { background: rgba(255, 107, 107, 0.14); color: #ff8f8f; }
-.tvp__today-line { color: var(--dim); font-size: clamp(14px, 1vw, 26px); }
+.tvp__today-line { color: var(--dim); font-size: clamp(13px, 0.85vw, 22px); }
 .tvp__today-line b { color: var(--text); }
 
 /* Bomba passou do tempo */
@@ -616,6 +616,20 @@ html.tv button, html.tv a { cursor: pointer; }
 @media (min-width: 1100px) {
   .tvp { height: 100vh; overflow: hidden; }
   .tvp__list { overflow: hidden; }
+}
+/* Telas largas e baixas (notebook): o mapa tem prioridade; gráfico de 24 h e lista ficam no Painel completo/Histórico. */
+@media (min-width: 1100px) and (max-height: 1000px) {
+  .tvp__col { container-type: inline-size; }
+  .tvp__map { flex: none; }
+  /* Mapa do maior tamanho que cabe na altura, sem deformar (12 × 5). Navegador sem suporte: largura total. */
+  .tvp__map { width: auto; height: min(calc(100vh - 640px), calc(100cqw / 2.4)); align-self: center; }
+  .tvp__spark-box,
+  .tvp__col--irr .tvp__list-title,
+  .tvp__col--irr .tvp__list,
+  .tvp__col--irr .tvp__empty,
+  .tvp__col--irr .tvp__footnote { display: none; }
+  .tvp__fc-days li { padding: 0.25em 0.6em; }
+  .tvp__fc-icon { width: clamp(28px, 2.1vw, 50px); height: clamp(28px, 2.1vw, 50px); }
 }
 /* Celular e tablet: colunas empilhadas. */
 @media (max-width: 1099px) {
