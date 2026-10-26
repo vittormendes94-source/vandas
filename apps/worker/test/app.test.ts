@@ -310,6 +310,46 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     vi.useRealTimers();
   });
 
+  it('irrigações: liga → desliga vira um registro com duração; sem sinal não presume que desligou', async () => {
+    const mock = setup();
+    mock.state.devices = [switchThing('bomba01', 'Bomba', { state: 'off' })];
+    await connect(mock);
+    await link((c) => void (c.pump.deviceId = 'bomba01'));
+    const T0 = Date.now();
+    const tick = async (t: number, state: 'on' | 'off', online = true) => {
+      mock.state.devices = [switchThing('bomba01', 'Bomba', { state, online })];
+      await runScheduled(env, t);
+    };
+    await tick(T0, 'off');
+    await tick(T0 + 2 * MIN, 'on');
+    await tick(T0 + 4 * MIN, 'on');
+    await tick(T0 + 6 * MIN, 'on');
+    // Em andamento: aparece com a duração até a última confirmação.
+    vi.useFakeTimers({ now: T0 + 6 * MIN, toFake: ['Date'] });
+    let l = await live();
+    expect(l.irrigations.last[0]).toMatchObject({ startedAt: iso(T0 + 2 * MIN), endedAt: null, durationMs: 4 * MIN });
+    vi.useRealTimers();
+    await tick(T0 + 8 * MIN, 'off');
+    const r = (await (await call(`/api/irrigations?from=${iso(T0 - DAY)}&to=${iso(T0 + DAY)}`)).json()) as { events: { startedAt: string; endedAt: string; durationMs: number; endReason: string }[] };
+    expect(r.events).toEqual([{ startedAt: iso(T0 + 2 * MIN), endedAt: iso(T0 + 8 * MIN), lastOnAt: iso(T0 + 6 * MIN), endReason: 'off', durationMs: 6 * MIN }]);
+
+    // Segunda irrigação: o Sonoff some no meio. Antes de 30 min nada é fechado; depois, fecha no último "ligada" visto.
+    await tick(T0 + 20 * MIN, 'on');
+    await tick(T0 + 22 * MIN, 'on', false);
+    await tick(T0 + 40 * MIN, 'on', false);
+    let ev = (await (await call(`/api/irrigations?from=${iso(T0 - DAY)}&to=${iso(T0 + DAY)}`)).json()) as { events: { endedAt: string | null; endReason: string | null }[] };
+    expect(ev.events[0]).toMatchObject({ endedAt: null, endReason: null });
+    await tick(T0 + 55 * MIN, 'on', false);
+    ev = (await (await call(`/api/irrigations?from=${iso(T0 - DAY)}&to=${iso(T0 + DAY)}`)).json()) as typeof ev;
+    expect(ev.events[0]).toMatchObject({ endedAt: iso(T0 + 20 * MIN), endReason: 'sem_sinal' });
+
+    vi.useFakeTimers({ now: T0 + 60 * MIN, toFake: ['Date'] });
+    l = await live();
+    expect(l.irrigations.last).toHaveLength(2);
+    vi.useRealTimers();
+    expect((await call(`/api/irrigations?from=${iso(T0)}&to=${iso(T0 - 1)}`)).status).toBe(400);
+  });
+
   it('callback com state errado/expirado ou sem conexão iniciada é recusado', async () => {
     setup();
     const bad = await call('/api/ewelink/callback?code=code-12345678&region=us&state=inventado');

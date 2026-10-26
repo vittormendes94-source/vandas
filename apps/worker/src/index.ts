@@ -1,14 +1,15 @@
 import type { ExecutionContext, ScheduledController } from '@cloudflare/workers-types';
 import { app } from './app';
 import type { Env } from './env';
-import { pollEwelink } from './ewelink';
+import { PROVIDER, pollEwelink } from './ewelink';
+import { trackPumpFromDb } from './irrigation';
 import { pollSwitchbot } from './switchbot';
 import { logError, logInfo } from './logging';
 import { applyRetention, getConfig } from './repo';
 
 /**
  * Tarefa agendada (wrangler.toml, a cada 2 min):
- *  - lê os sensores SwitchBot e o estado da bomba (eWeLink), de forma independente;
+ *  - lê os sensores SwitchBot e o estado da bomba (eWeLink), de forma independente, e registra as irrigações;
  *  - uma vez por dia (06:00 UTC = 03:00 em America/Sao_Paulo) aplica a retenção.
  */
 export async function runScheduled(env: Env, scheduledTime: number): Promise<void> {
@@ -20,6 +21,8 @@ export async function runScheduled(env: Env, scheduledTime: number): Promise<voi
     if (sb.status === 'rejected') logError('switchbot', sb.reason, env);
     if (r.status === 'fulfilled' && r.value.ran && r.value.reason) logInfo('ewelink', `leitura falhou: ${r.value.reason}`);
     if (r.status === 'rejected') logError('ewelink', r.reason, env);
+    // Irrigações: aplica o último estado conhecido da bomba (também fecha uma irrigação se o Sonoff sumir).
+    await trackPumpFromDb(env.DB, config, PROVIDER, scheduledTime).catch((e) => logError('irrigacao', e, env));
     const d = new Date(scheduledTime);
     if (d.getUTCHours() === 6 && d.getUTCMinutes() < 2) {
       const ret = await applyRetention(env.DB, config, scheduledTime);

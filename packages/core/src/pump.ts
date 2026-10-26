@@ -1,5 +1,5 @@
 /**
- * Bomba: somente o estado ATUAL informado pelo Sonoff (ligada/desligada). Nada é registrado em histórico.
+ * Bomba: estado ATUAL informado pelo Sonoff (ligada/desligada). Os períodos ligada viram "irrigações" (ver irrigation.ts).
  *
  * Regra de segurança: se não há informação recente e confiável, o estado é "desconhecido" — nunca "desligada".
  *  - O eWeLink informa se o Sonoff está online. Offline → sem comunicação.

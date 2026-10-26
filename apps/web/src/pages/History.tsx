@@ -22,6 +22,7 @@ import type { AppConfig, CsvCell } from '@orq/core';
 import { LineChart } from '../components/LineChart';
 import type { ChartSeries } from '../components/LineChart';
 import { PeriodCard } from '../components/Indicators';
+import { IrrigationHistory } from '../components/IrrigationHistory';
 import { Chip, MeasuredChip, Notice } from '../components/ui';
 import { useHistory } from '../hooks/useHistory';
 import { api } from '../lib/api';
@@ -248,6 +249,8 @@ export function History({ config, nowMs }: { config: AppConfig | null; nowMs: nu
         </section>
       ))}
 
+      <IrrigationHistory range={range} nowMs={nowMs} />
+
       <section className="card" aria-label="Lacunas">
         <div className="card__head">
           <div>
@@ -283,7 +286,7 @@ export function History({ config, nowMs }: { config: AppConfig | null; nowMs: nu
           </div>
         )}
         <p className="tiny mute" style={{ margin: '0.5rem 0 0' }}>
-          Sensores Zigbee costumam enviar leitura quando o valor muda; em períodos estáveis o intervalo entre leituras pode ser maior sem que haja falha.
+          Uma leitura só é gravada quando o valor muda; em períodos estáveis o intervalo entre leituras pode ser maior sem que haja falha.
         </p>
       </section>
 

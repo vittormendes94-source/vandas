@@ -24,14 +24,13 @@ interface Props {
   replay?: boolean;
 }
 
-export function MapCard({ quantity, snapshot, config, selectedId, onSelect, instantLabel, replay }: Props) {
-  const meta = META[quantity];
+/** Desenha o campo estimado (IDW) num canvas que acompanha o tamanho do contêiner. Usado pelo painel e pela TV. */
+export function useFieldCanvas(quantity: Quantity, snapshot: Snapshot, config: AppConfig, opts: { hatch?: boolean; grid?: boolean } = {}) {
+  const { hatch = true, grid = true } = opts;
   const scale = config.scales[quantity];
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [tip, setTip] = useState<{ left: number; top: number; text: string } | null>(null);
-
   const points = useMemo(
     () =>
       snapshot.sensors
@@ -86,21 +85,23 @@ export function MapCard({ quantity, snapshot, config, selectedId, onSelect, inst
       ctx.drawImage(off, 0, 0, W, H);
 
       // hachura sobre a região EXTRAPOLADA (fora do polígono formado pelos sensores)
-      ctx.save();
-      const clip = new Path2D();
-      clip.rect(0, 0, W, H);
-      coverage.hull.forEach((p, i) => (i === 0 ? clip.moveTo(px(p.x), py(p.y)) : clip.lineTo(px(p.x), py(p.y))));
-      clip.closePath();
-      ctx.clip(clip, 'evenodd');
-      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-      ctx.lineWidth = 1;
-      for (let k = -H; k < W; k += 9) {
-        ctx.beginPath();
-        ctx.moveTo(k, H);
-        ctx.lineTo(k + H, 0);
-        ctx.stroke();
+      if (hatch) {
+        ctx.save();
+        const clip = new Path2D();
+        clip.rect(0, 0, W, H);
+        coverage.hull.forEach((p, i) => (i === 0 ? clip.moveTo(px(p.x), py(p.y)) : clip.lineTo(px(p.x), py(p.y))));
+        clip.closePath();
+        ctx.clip(clip, 'evenodd');
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+        ctx.lineWidth = 1;
+        for (let k = -H; k < W; k += 9) {
+          ctx.beginPath();
+          ctx.moveTo(k, H);
+          ctx.lineTo(k + H, 0);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
-      ctx.restore();
 
       // contorno da área delimitada pelos sensores
       ctx.save();
@@ -115,21 +116,32 @@ export function MapCard({ quantity, snapshot, config, selectedId, onSelect, inst
     }
 
     // grade de 1 m
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-    ctx.lineWidth = 1;
-    for (let x = 1; x < ROOM.lengthM; x++) {
-      ctx.beginPath();
-      ctx.moveTo(px(x), 0);
-      ctx.lineTo(px(x), H);
-      ctx.stroke();
+    if (grid) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+      ctx.lineWidth = 1;
+      for (let x = 1; x < ROOM.lengthM; x++) {
+        ctx.beginPath();
+        ctx.moveTo(px(x), 0);
+        ctx.lineTo(px(x), H);
+        ctx.stroke();
+      }
+      for (let y = 1; y < ROOM.widthM; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, py(y));
+        ctx.lineTo(W, py(y));
+        ctx.stroke();
+      }
     }
-    for (let y = 1; y < ROOM.widthM; y++) {
-      ctx.beginPath();
-      ctx.moveTo(0, py(y));
-      ctx.lineTo(W, py(y));
-      ctx.stroke();
-    }
-  }, [field, coverage, size, scale, quantity]);
+  }, [field, coverage, size, scale, quantity, hatch, grid]);
+
+  return { stageRef, canvasRef, points, coverage, field };
+}
+
+export function MapCard({ quantity, snapshot, config, selectedId, onSelect, instantLabel, replay }: Props) {
+  const meta = META[quantity];
+  const scale = config.scales[quantity];
+  const [tip, setTip] = useState<{ left: number; top: number; text: string } | null>(null);
+  const { stageRef, canvasRef, points, coverage, field } = useFieldCanvas(quantity, snapshot, config);
 
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!field || coverage.state !== 'ok') return setTip(null);

@@ -1,4 +1,4 @@
-import type { AppConfig, HistoryResponse, LiveResponse, ProviderDeviceDto } from '@orq/core';
+import type { AppConfig, HistoryResponse, IrrigationsResponse, LiveResponse, ProviderDeviceDto } from '@orq/core';
 
 export class ApiError extends Error {
   constructor(
@@ -102,6 +102,8 @@ export const api = {
       `/api/history?from=${encodeURIComponent(new Date(from).toISOString())}&to=${encodeURIComponent(new Date(to).toISOString())}&res=${opts.res ?? 'auto'}${opts.full ? '&detail=full' : ''}`,
       { signal: opts.signal },
     ),
+  irrigations: (from: number, to: number, signal?: AbortSignal) =>
+    request<IrrigationsResponse>(`/api/irrigations?from=${encodeURIComponent(new Date(from).toISOString())}&to=${encodeURIComponent(new Date(to).toISOString())}`, { signal }),
   saveConfig: (config: AppConfig) => request<AppConfig>('/api/config', { method: 'PUT', body: config, admin: true }),
   devices: (signal?: AbortSignal) => request<{ devices: ProviderDeviceDto[] }>('/api/devices', { signal }),
   switchbotPoll: () => request<{ ran: boolean; reason?: string; devices?: number; inserted?: number }>('/api/switchbot/poll', { method: 'POST', body: {}, admin: true }),
