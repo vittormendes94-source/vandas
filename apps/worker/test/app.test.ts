@@ -641,7 +641,10 @@ describe('SwitchBot (origem dos sensores Outdoor Meter, sem computador no local)
     // S2 mudou: só S2 ganha leitura nova.
     mock.state.status.get('C1A1A1A1A102').temperature = 25.4;
     expect(await pollSwitchbot(e, e.DB, await getConfig(e.DB), t1 + 4 * MIN)).toMatchObject({ inserted: 1 });
+    // mesmo relógio das leituras (evita virar o dia UTC no meio do teste)
+    vi.useFakeTimers({ now: t1 + 4 * MIN, toFake: ['Date'] });
     l = await live(e);
+    vi.useRealTimers();
     expect(l.latest.s1!.measuredAt).toBe(iso(t1));
     expect(l.latest.s2).toMatchObject({ temperatureC: 25.4, measuredAt: iso(t1 + 4 * MIN) });
     expect(l.integration.switchbot).toMatchObject({ configured: true, lastError: null, consecutiveFailures: 0 });
