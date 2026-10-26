@@ -60,7 +60,7 @@ export const AppConfigSchema = z
       maxRunMin: z.number().int().min(1).max(180).default(5),
     }),
     /** Cidade do orquidário, para o clima de fora (Open-Meteo). null = não informada. */
-    location: PlaceSchema.nullable().default(null),
+    location: PlaceSchema.nullable().default({ name: 'Patrocínio, Minas Gerais', lat: -18.9439, lon: -46.9925 }),
     retention: z.strictObject({ rawDays: z.number().int().min(7).max(90) }),
   })
   .superRefine((c, ctx) => {
@@ -124,7 +124,8 @@ export function defaultConfig(): AppConfig {
       layoutProvisional: true,
     },
     pump: { deviceId: null, outlet: 0, maxRunMin: 5 },
-    location: null,
+    // Cidade informada pelo dono (Patrocínio, MG). Pode ser trocada em Configurações.
+    location: { name: 'Patrocínio, Minas Gerais', lat: -18.9439, lon: -46.9925 },
     retention: { rawDays: 45 },
   };
 }

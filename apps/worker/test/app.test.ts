@@ -633,10 +633,11 @@ describe('clima da cidade (Open-Meteo)', () => {
       if (fail) return new Response('erro', { status: 500 });
       return new Response(JSON.stringify(forecast), { status: 200, headers: { 'content-type': 'application/json' } });
     });
+    await saveConfig(env.DB, { ...defaultConfig(), location: null }, Date.now());
     expect(await weather()).toMatchObject({ configured: false, data: null });
     expect(calls).toHaveLength(0);
 
-    await saveConfig(env.DB, { ...defaultConfig(), location: { name: 'Uberlândia, Minas Gerais', lat: -18.9186, lon: -48.2772 } }, Date.now());
+    await saveConfig(env.DB, { ...defaultConfig(), revision: 1, location: { name: 'Uberlândia, Minas Gerais', lat: -18.9186, lon: -48.2772 } }, Date.now());
     const w1 = await weather();
     expect(w1).toMatchObject({ configured: true, place: 'Uberlândia, Minas Gerais', stale: false, error: null });
     expect(w1.data!.current.temperatureC).toBe(27.4);

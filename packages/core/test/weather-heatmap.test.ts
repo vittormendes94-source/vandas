@@ -81,7 +81,7 @@ describe('configuração: campos novos', () => {
     const c = parseStoredConfig({ ...rest, pump, revision: 7 });
     expect(c.revision).toBe(7);
     expect(c.pump).toEqual({ deviceId: 'abc', outlet: 1, maxRunMin: 5 });
-    expect(c.location).toBeNull();
+    expect(c.location?.name).toBe('Patrocínio, Minas Gerais'); // cidade do orquidário vem pré-definida
   });
   it('cidade e tempo de irrigação são validados', () => {
     const c = defaultConfig();
