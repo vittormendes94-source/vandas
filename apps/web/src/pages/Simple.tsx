@@ -164,6 +164,10 @@ function QuantityColumn(p: {
   const trend = trendOf(p.line, u.threshold, p.nowMs);
   const fresh = p.snap.counts.fresh;
   const never = p.snap.lastMeasuredAt === null;
+  // Período do gráfico se adapta às medições: do primeiro ponto até agora, entre 1 h e 24 h.
+  const first = p.line.length ? p.line[0]!.t : p.to;
+  const sparkFrom = Math.max(p.from, Math.min(first, p.to - HOUR));
+  const sparkHours = Math.max(1, Math.round((p.to - sparkFrom) / HOUR));
   return (
     <section className={`tvp__col tvp__col--${p.quantity}`} aria-label={p.title}>
       <SmartMap
@@ -200,14 +204,14 @@ function QuantityColumn(p: {
         </div>
       ) : (
         <div className="tvp__spark-box">
-          <Spark points={p.line} from={p.from} to={p.to} color={p.quantity === 'temperature' ? 'var(--tvp-temp)' : 'var(--tvp-hum)'} />
+          <Spark points={p.line.filter((x) => x.t >= sparkFrom)} from={sparkFrom} to={p.to} color={p.quantity === 'temperature' ? 'var(--tvp-temp)' : 'var(--tvp-hum)'} />
           <div className="tvp__spark-axis" aria-hidden="true">
-            <span>{formatTime(p.from)} ontem</span>
-            <span>{formatTime(p.from + 12 * HOUR)}</span>
+            <span>{formatTime(sparkFrom)}</span>
+            <span>{formatTime((sparkFrom + p.to) / 2)}</span>
             <span>agora</span>
           </div>
           <div className="tvp__spark-label">
-            <span>Média dos sensores · últimas 24 h</span>
+            <span>Média dos sensores · últimas {sparkHours} h</span>
             {p.today && (
               <span>
                 Hoje: mín <b>{fmtNum(p.today[0], u.digits)}{u.suffix}</b> · máx <b>{fmtNum(p.today[1], u.digits)}{u.suffix}</b>

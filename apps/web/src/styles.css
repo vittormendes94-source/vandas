@@ -456,7 +456,7 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__map canvas,
 .tvp__vmap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* Croqui em pé (5 m × 12 m) à esquerda; números, escala e gráfico à direita. */
-.tvp__qv { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 36% minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: clamp(10px, 1vw, 24px); }
+.tvp__qv { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 46% minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: clamp(10px, 1vw, 24px); }
 .tvp__vmap { position: relative; width: 100%; height: 100%; min-height: 0; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--line-2); background: #0a1218; }
 .tvp__qv-side { overflow: hidden; display: flex; flex-direction: column; gap: clamp(8px, 0.8vw, 18px); min-width: 0; min-height: 0; }
 .tvp__spr { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
