@@ -137,6 +137,9 @@ export function Forecast({ w, nowMs }: { w: WeatherResponse | null; nowMs: numbe
         <div className="tvp__small">
           {w.place} · Open-Meteo{w.stale ? ' · desatualizada' : ''}
         </div>
+        <div className="tvp__fc-key">
+          <i aria-hidden="true" /> chuva provável
+        </div>
       </div>
       <ol className="tvp__fc-days">
         {days.map((d) => {
