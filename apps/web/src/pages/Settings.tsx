@@ -291,15 +291,24 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
             hint="Usa o ponto mais quente entre os sensores da estufa."
           />
           <Num
-            label="Não irrigar com sol direto acima de"
+            label="Sombrite da estufa"
+            unit="%"
+            min={0}
+            max={95}
+            value={draft.irrigationRules.shadePct ?? 0}
+            onChange={(v) => set((d) => void (d.irrigationRules.shadePct = (v as number) || 0))}
+            hint="Ex.: 80. O sistema desconta o sombrite do sol de fora para saber quanto sol chega nas plantas."
+          />
+          <Num
+            label="Não irrigar com sol DENTRO da estufa acima de"
             unit="W/m²"
             nullable
-            step={50}
+            step={10}
             min={0}
             max={1400}
             value={draft.irrigationRules.maxSunWm2}
             onChange={(v) => set((d) => void (d.irrigationRules.maxSunWm2 = v))}
-            hint="Estimativa para a cidade (Open-Meteo). Referência: céu limpo ao meio-dia 700–900; manhã cedo/fim de tarde abaixo de 300; nublado abaixo de 150."
+            hint="Sugestão com sombrite 80%: 150 (equivale a ~750 lá fora, sol forte). Céu limpo ao meio-dia lá fora: 700–900."
           />
           <label className="field">
             <span>Período a evitar · início</span>

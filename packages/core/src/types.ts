@@ -107,7 +107,7 @@ export interface AppConfig {
     maxRunMin: number;
   };
   /** Quando NÃO irrigar: estufa quente, sol direto forte, período a evitar. A automação respeita; a TV avisa. */
-  irrigationRules: { maxTempC: number | null; maxSunWm2: number | null; avoidFrom: string | null; avoidTo: string | null };
+  irrigationRules: { maxTempC: number | null; maxSunWm2: number | null; shadePct?: number; avoidFrom: string | null; avoidTo: string | null };
   /** Automação da bomba (ver automation.ts). */
   automation: {
     mode: 'desligado' | 'protecao' | 'automatico';
