@@ -14,19 +14,22 @@ export interface IrrigationRules {
   maxTempC: number | null;
   /** Não irrigar com sol direto acima disto (W/m²). null = sem regra. */
   maxSunWm2: number | null;
+  /** Sombrite da estufa (%). O limite de sol vale para a luz que chega DENTRO (sol de fora × (1 − sombrite)). */
+  shadePct?: number;
   /** Período do dia a evitar (HH:MM). Os dois null = sem período. Pode atravessar a meia-noite. */
   avoidFrom: string | null;
   avoidTo: string | null;
 }
 
 /** Ponto de partida (ajustável em Configurações): estufa até 30 °C e sol direto até 500 W/m². */
-export const DEFAULT_IRRIGATION_RULES: IrrigationRules = { maxTempC: 30, maxSunWm2: 500, avoidFrom: null, avoidTo: null };
+export const DEFAULT_IRRIGATION_RULES: IrrigationRules & { shadePct: number } = { maxTempC: 30, maxSunWm2: 500, shadePct: 0, avoidFrom: null, avoidTo: null };
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM.');
 export const IrrigationRulesSchema = z
   .strictObject({
     maxTempC: z.number().finite().min(0).max(60).nullable(),
     maxSunWm2: z.number().finite().min(0).max(1400).nullable(),
+    shadePct: z.number().min(0).max(95).default(0),
     avoidFrom: hhmm.nullable(),
     avoidTo: hhmm.nullable(),
   })
@@ -61,7 +64,9 @@ export function irrigationAdvice(input: {
   nowLocal: string;
   hours?: WeatherHour[];
 }): IrrigationAdvice {
-  const { rules: r, insideMaxC, sunWm2, nowLocal } = input;
+  const { rules: r, insideMaxC, nowLocal } = input;
+  const k = 1 - (r.shadePct ?? 0) / 100;
+  const sunWm2 = input.sunWm2 === null ? null : input.sunWm2 * k;
   const reasons: string[] = [];
   const missing: string[] = [];
   let evaluated = 0;
@@ -77,7 +82,7 @@ export function irrigationAdvice(input: {
     if (sunWm2 === null) missing.push('sem dado de sol');
     else {
       evaluated++;
-      if (sunWm2 > r.maxSunWm2) reasons.push(`Sol forte: ${fmt(sunWm2)} W/m² (limite ${fmt(r.maxSunWm2)})`);
+      if (sunWm2 > r.maxSunWm2) reasons.push(`Sol forte: ${fmt(sunWm2)} W/m²${r.shadePct ? ' dentro da estufa' : ''} (limite ${fmt(r.maxSunWm2)})`);
     }
   }
   const time = nowLocal.slice(11, 16);
@@ -101,8 +106,8 @@ export function irrigationAdvice(input: {
       if (r.maxSunWm2 !== null) {
         const i = input.hours.indexOf(h);
         const next = input.hours[i + 1];
-        if (h.directRadiationWm2 === null || h.directRadiationWm2 > r.maxSunWm2) continue;
-        if (next && next.directRadiationWm2 !== null && next.directRadiationWm2 > r.maxSunWm2) continue;
+        if (h.directRadiationWm2 === null || h.directRadiationWm2 * k > r.maxSunWm2) continue;
+        if (next && next.directRadiationWm2 !== null && next.directRadiationWm2 * k > r.maxSunWm2) continue;
       }
       nextGood = h.time.slice(0, 10) === nowLocal.slice(0, 10) ? t : `amanhã ${t}`;
       break;
