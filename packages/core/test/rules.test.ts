@@ -90,3 +90,18 @@ describe('o que fazer (insights da semana)', () => {
     expect(r.find((x) => x.title.startsWith('Ar seco'))!.action).toContain('10h');
   });
 });
+
+describe('depois de cada irrigação', () => {
+  it('subida e tempo para voltar ao normal, por sensor', async () => {
+    const { irrigationResponse, responseAdvice } = await import('../src');
+    const M = 60_000;
+    const T = Date.UTC(2026, 9, 20, 10);
+    const ev = [{ startedAt: new Date(T).toISOString(), endedAt: new Date(T + 5 * M).toISOString(), lastOnAt: '', endReason: 'off' as const, durationMs: 5 * M }];
+    const s1 = [{ t: T - 30 * M, h: 70 }, { t: T + 4 * M, h: 88 }, { t: T + 60 * M, h: 80 }, { t: T + 125 * M, h: 71 }];
+    const s2 = [{ t: T - 30 * M, h: 70 }, { t: T + 6 * M, h: 72 }, { t: T + 600 * M, h: 72 }];
+    const r = irrigationResponse(ev, new Map([['s1', s1], ['s2', s2]]));
+    expect(r).toEqual([{ sensorId: 's1', n: 1, rise: 18, recoverMin: 120 }, { sensorId: 's2', n: 1, rise: 2, recoverMin: 595 }]);
+    expect(responseAdvice(r[0]!)).toContain('Dentro do esperado');
+    expect(responseAdvice(r[1]!)).toContain('Subida pequena');
+  });
+});
