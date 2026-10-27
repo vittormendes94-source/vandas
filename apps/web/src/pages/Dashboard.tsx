@@ -67,8 +67,8 @@ export function Dashboard({ live, nowMs, tv, onGoConfig, onGoData }: Props) {
   const config = data?.config;
   const sensorIds = useMemo(() => config?.sensors.map((s) => s.id) ?? [], [config]);
   const trendBuckets = useMemo(() => (trendHist.data ? bucketsFromHistory(trendHist.data) : []), [trendHist.data]);
-  const tPoints = useMemo(() => meanAcrossSensors(trendBuckets, 'temperature', sensorIds, period.bin), [trendBuckets, sensorIds, period.bin]);
-  const hPoints = useMemo(() => meanAcrossSensors(trendBuckets, 'humidity', sensorIds, period.bin), [trendBuckets, sensorIds, period.bin]);
+  const tPoints = useMemo(() => meanAcrossSensors(trendBuckets, 'temperature', sensorIds, period.bin, sensorIds.length, 60 * 60_000), [trendBuckets, sensorIds, period.bin]);
+  const hPoints = useMemo(() => meanAcrossSensors(trendBuckets, 'humidity', sensorIds, period.bin, sensorIds.length, 60 * 60_000), [trendBuckets, sensorIds, period.bin]);
   const periodSummary = useMemo(() => (trendHist.data ? summarizePeriod(trendBuckets) : null), [trendHist.data, trendBuckets]);
 
   const replayBuckets = useMemo(() => (replayHist.data ? bucketsFromHistory(replayHist.data) : []), [replayHist.data]);

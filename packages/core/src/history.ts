@@ -147,9 +147,26 @@ export function meanAcrossSensors(
   sensorIds: string[],
   binMs: number,
   minSensors = sensorIds.length,
+  /** Mantém o último valor de cada sensor por até este tempo em intervalos sem leitura (SwitchBot só grava quando muda). */
+  holdMs = 0,
 ): MeanPoint[] {
   const wanted = new Set(sensorIds);
   const bins = new Map<number, Map<string, { sum: number; w: number }>>();
+  if (holdMs > 0) {
+    // Preenche intervalos vazios com o último valor conhecido do sensor (até holdMs depois dele).
+    const per = new Map<string, Bucket[]>();
+    for (const b of buckets) if (wanted.has(b.sensorId)) per.set(b.sensorId, [...(per.get(b.sensorId) ?? []), b]);
+    const extra: Bucket[] = [];
+    for (const arr of per.values()) {
+      arr.sort((a, b) => a.t - b.t);
+      for (let i = 0; i < arr.length; i++) {
+        const cur = arr[i]!;
+        const nextT = arr[i + 1]?.t ?? Infinity;
+        for (let k = (Math.floor(cur.t / binMs) + 1) * binMs; k < nextT && k - cur.t <= holdMs; k += binMs) extra.push({ ...cur, t: k, n: 1 });
+      }
+    }
+    buckets = buckets.concat(extra);
+  }
   for (const b of buckets) {
     if (!wanted.has(b.sensorId)) continue;
     const key = Math.floor(b.t / binMs) * binMs;
