@@ -327,7 +327,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         </div>
       </Section>
 
-      <Section title="Limites de alerta" sub="Você define os limites; o sistema não impõe faixas agronômicas universais. Deixe em branco para desativar.">
+      <Section title="Limites de alerta" sub="Faixa ideal da estufa: define as cores da TV e quando o celular avisa. Sugestão para Vandas: temperatura 16 a 32 °C, umidade 60 a 85 %. DPV pode ficar em branco.">
         <div className="form-grid" style={{ marginTop: '0.6rem' }}>
           {(
             [
@@ -344,13 +344,22 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         </div>
       </Section>
 
-      <Section title="Mapas: escalas e orientação" sub="Escalas fixas permitem comparar momentos diferentes na mesma cor. Não representam faixas ideais.">
+      <Section title="Mapas: escalas e orientação" sub="As escalas podem ficar como estão (só afetam o Painel completo). Preencha apenas a bússola.">
         <div className="form-grid">
           <Num label="Temperatura · escala mínima" unit="°C" value={draft.scales.temperature.min} onChange={(v) => set((d) => void (d.scales.temperature.min = v as number))} />
           <Num label="Temperatura · escala máxima" unit="°C" value={draft.scales.temperature.max} onChange={(v) => set((d) => void (d.scales.temperature.max = v as number))} />
           <Num label="Umidade · escala mínima" unit="% UR" value={draft.scales.humidity.min} onChange={(v) => set((d) => void (d.scales.humidity.min = v as number))} />
           <Num label="Umidade · escala máxima" unit="% UR" value={draft.scales.humidity.max} onChange={(v) => set((d) => void (d.scales.humidity.max = v as number))} />
-          <Num label="Direção do Norte" unit="graus, sentido horário a partir do topo da planta em pé (0 = Norte para cima, 90 = direita)" nullable min={0} max={359} value={draft.orientation.northAngleDeg} onChange={(v) => set((d) => void (d.orientation.northAngleDeg = v))} hint="Use a bússola do celular parado no início da estufa, olhando para o fundo: o número que aparece é o ângulo. Vazio = não informado." />
+          <Num
+            label="Bússola: graus olhando do Fundo para o Início"
+            unit="°"
+            nullable
+            min={0}
+            max={359}
+            value={draft.orientation.northAngleDeg === null ? null : (360 - draft.orientation.northAngleDeg) % 360}
+            onChange={(v) => set((d) => void (d.orientation.northAngleDeg = v === null ? null : (360 - Math.round(v)) % 360))}
+            hint="Abra o app Bússola do celular, fique no FUNDO da estufa e aponte o celular para o INÍCIO. Digite o número de graus que aparece (ex.: 70). Vazio = não informado."
+          />
         </div>
       </Section>
 
