@@ -688,3 +688,12 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__north { position: absolute; right: 6px; top: 6px; width: clamp(28px, 2vw, 46px); height: clamp(28px, 2vw, 46px); border-radius: 50%; background: rgba(7,13,17,0.6); display: grid; place-items: center; pointer-events: none; }
 .tvp__north svg { width: 70%; height: 70%; }
 .tvp__north b { position: absolute; top: -2px; font-size: 9px; color: #ff9b9b; }
+/* Cabeçalho compacto: título + status na mesma linha, detalhes pequenos embaixo. */
+.tvp__status { padding-top: 4px !important; padding-bottom: 4px !important; }
+.tvp__status-text { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 1em; }
+.tvp__status .tvp__details { flex-basis: 100%; margin-top: 0; font-size: clamp(10px, 0.62vw, 15px); }
+.tvp__status .tvp__headline { margin-top: 0; }
+.tvp__logo { width: clamp(24px, 1.6vw, 40px); height: clamp(24px, 1.6vw, 40px); }
+.tvp__right { flex-direction: row !important; align-items: center !important; gap: 0.8em !important; flex-wrap: wrap; justify-content: flex-end; }
+.tvp__clock { flex-direction: row !important; align-items: baseline !important; gap: 0.5em; }
+.tvp__out { padding: 0.1em 0.8em 0.1em 0.4em; }
