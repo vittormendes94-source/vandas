@@ -336,7 +336,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         </div>
       </Section>
 
-      <Section title="Limites de alerta" sub="Faixa ideal da estufa (temperatura = faixa do DIA): define as cores da TV e quando o celular avisa. Sugestão: temperatura 24 a 30 °C, umidade 70 a 80 %. DPV pode ficar em branco.">
+      <Section title="Faixa do DIA (temperatura e umidade)" sub="Faixa ideal da estufa (temperatura = faixa do DIA): define as cores da TV e quando o celular avisa. Sugestão: temperatura 24 a 30 °C, umidade 70 a 80 %. DPV pode ficar em branco.">
         <div className="form-grid" style={{ marginTop: '0.6rem' }}>
           {(
             [
@@ -353,7 +353,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
         </div>
       </Section>
 
-      <Section title="Temperatura da noite" sub="Faixa usada à noite no lugar da do dia (ex.: dia 24–30 °C, noite 18–22 °C). Deixe em branco para usar a mesma do dia.">
+      <Section title="Faixa da NOITE (temperatura)" sub="À noite a estufa esfria: esta faixa substitui a do dia no período abaixo (ex.: dia 24–30 °C, noite 18–22 °C). A umidade continua a mesma do dia.">
         <div className="form-grid">
           <Num label="Noite · mínimo" unit="°C" nullable step={0.5} value={draft.nightTemperature.limits.min} onChange={(v) => set((d) => void (d.nightTemperature.limits.min = v))} />
           <Num label="Noite · máximo" unit="°C" nullable step={0.5} value={draft.nightTemperature.limits.max} onChange={(v) => set((d) => void (d.nightTemperature.limits.max = v))} />
