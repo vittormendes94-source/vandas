@@ -170,7 +170,7 @@ describe('zonas de calor', () => {
     const t = heatStops('temperature', 20, 30);
     expect(colorAt(t, 30)[0]).toBeGreaterThan(200); // quente = vermelho
     const h = heatStops('humidity', 50, 70);
-    expect(colorAt(h, 50)[0]).toBeGreaterThan(200); // seco = vermelho
+    expect(colorAt(h, 50)[0]).toBeGreaterThan(colorAt(h, 50)[2]); // seco = marrom (mais vermelho que azul)
     expect(colorAt(h, 70)[2]).toBeGreaterThan(200); // úmido = azul
     const f = buildHeatZones([{ x: 2, y: 2, v: 20 }, { x: 10, y: 2, v: 30 }], 12, 5, 12, 5)!;
     expect(Math.min(...f.values)).toBeGreaterThanOrEqual(20);
