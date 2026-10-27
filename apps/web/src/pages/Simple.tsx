@@ -310,7 +310,7 @@ function IrrigationColumn({
         </div>
       </div>
 
-      <AdviceCard advice={advice} />
+      <AdviceCard advice={advice} automation={automation} nowMs={nowMs} />
       <AutomationCard a={automation} />
 
       {pump.tone === 'none' && summary.last.length === 0 ? (
@@ -386,7 +386,27 @@ function AutomationCard({ a }: { a: AutomationStatusDto }) {
 }
 
 /** "Pode irrigar agora?" pelas regras do dono (Configurações → Regras de irrigação). */
-function AdviceCard({ advice }: { advice: IrrigationAdvice }) {
+function AdviceCard({ advice, automation, nowMs }: { advice: IrrigationAdvice; automation: AutomationStatusDto; nowMs: number }) {
+  // No modo automático, "pode irrigar" também depende dos horários: fora deles, mostra o próximo.
+  const nowHm = new Date(nowMs).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  const slots = automation.mode === 'automatico' ? automation.slots : [];
+  const inSlot = slots.some((s) => (s.status === 'pendente' || s.status === 'adiado') && toMin(nowHm) >= toMin(s.time) && toMin(nowHm) - toMin(s.time) <= 30);
+  const nextSlot = slots.map((s) => s.time).find((t) => toMin(t) > toMin(nowHm)) ?? (slots[0] ? `amanhã ${slots[0].time}` : null);
+  if (advice.state !== 'no' && slots.length > 0 && !inSlot) {
+    return (
+      <div className="tvp__advice tvp__advice--unknown" role="status">
+        <svg className="tvp__advice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 7.5V12l3 2M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17z" />
+        </svg>
+        <div>
+          <div className="tvp__advice-title">Fora do horário de irrigação</div>
+          <div className="tvp__advice-detail">{advice.state === 'ok' ? 'Temperatura e sol dentro das regras' : 'Regras sem dados agora'}</div>
+          {nextSlot && <div className="tvp__advice-next">Próxima irrigação: {nextSlot}</div>}
+        </div>
+      </div>
+    );
+  }
   const title = { ok: 'Pode irrigar agora', no: 'Não irrigar agora', unknown: 'Regras sem dados agora' }[advice.state];
   const icon = { ok: 'M5 12.5l4.5 4.5L19 7.5', no: 'M7 7l10 10M17 7L7 17', unknown: 'M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17.5v.1' }[advice.state];
   const detail =

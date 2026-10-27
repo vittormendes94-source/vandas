@@ -132,6 +132,15 @@ export function SmartMap({
           );
         })}
         {pumpOn && <div className="tvp__map-flag tvp__map-flag--on">Irrigando agora</div>}
+        {config.orientation.northAngleDeg !== null && (
+          <span className="tvp__north" style={{ transform: `rotate(${config.orientation.northAngleDeg}deg)` }} title="Norte">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2l5 12h-10z" fill="#ff6b6b" />
+              <path d="M12 22l-5-8h10z" fill="#e8f2f3" />
+            </svg>
+            <b>N</b>
+          </span>
+        )}
         <span className="tvp__dim tvp__dim--w">
           {ROOM.widthM} × {ROOM.lengthM} m
         </span>

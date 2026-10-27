@@ -38,6 +38,20 @@ export function WeeklyReport({ config, nowMs }: { config: AppConfig; nowMs: numb
     return { min: q === 'temperature' ? mn.tMin : mn.hMin, minAt: mn.t, max: q === 'temperature' ? mx.tMax : mx.hMax, maxAt: mx.t, mean, hours, limits: lim.min !== null || lim.max !== null, top: means[0], bottom: means[means.length - 1] };
   };
   const dt = (t: number) => new Date(t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const peakHours = () => {
+    if (!d) return [];
+    const acc = new Map<string, Map<number, number[]>>();
+    for (const b of d.buckets) {
+      const h = Number(new Date(b.t).toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }));
+      const m = acc.get(b.sensorId) ?? new Map<number, number[]>();
+      m.set(h, [...(m.get(h) ?? []), b.tAvg]);
+      acc.set(b.sensorId, m);
+    }
+    return [...acc].map(([id, m]) => {
+      const best = [...m].map(([hour, v]) => ({ hour, v: v.reduce((a, x) => a + x, 0) / v.length })).reduce((a, b) => (b.v > a.v ? b : a));
+      return { id, ...best };
+    });
+  };
   const t = stat('temperature');
   const h = stat('humidity');
   const ev = d?.irr.events ?? [];
@@ -93,6 +107,18 @@ export function WeeklyReport({ config, nowMs }: { config: AppConfig; nowMs: numb
               </div>
             );
           })}
+          <div className="report__box">
+            <h3>Sol e calor por ponto</h3>
+            <ul>
+              {peakHours().map((x) => (
+                <li key={x.id}>
+                  <b>{name(x.id)}</b>: mais quente por volta das <b>{x.hour}h</b> ({fmtNum(x.v, 1)} °C em média)
+                </li>
+              ))}
+              {peakHours().length === 0 && <li className="mute">Sem dados suficientes ainda.</li>}
+            </ul>
+            <p className="small mute" style={{ margin: '0.3rem 0 0' }}>Pontos que esquentam de manhã recebem sol do leste; à tarde, do oeste.</p>
+          </div>
           <div className="report__box">
             <h3>Irrigação</h3>
             <ul>

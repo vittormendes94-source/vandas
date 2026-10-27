@@ -350,7 +350,7 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
           <Num label="Temperatura · escala máxima" unit="°C" value={draft.scales.temperature.max} onChange={(v) => set((d) => void (d.scales.temperature.max = v as number))} />
           <Num label="Umidade · escala mínima" unit="% UR" value={draft.scales.humidity.min} onChange={(v) => set((d) => void (d.scales.humidity.min = v as number))} />
           <Num label="Umidade · escala máxima" unit="% UR" value={draft.scales.humidity.max} onChange={(v) => set((d) => void (d.scales.humidity.max = v as number))} />
-          <Num label="Direção do Norte" unit="graus, sentido horário a partir do topo do mapa" nullable min={0} max={359} value={draft.orientation.northAngleDeg} onChange={(v) => set((d) => void (d.orientation.northAngleDeg = v))} hint="Vazio = orientação ainda não informada." />
+          <Num label="Direção do Norte" unit="graus, sentido horário a partir do topo da planta em pé (0 = Norte para cima, 90 = direita)" nullable min={0} max={359} value={draft.orientation.northAngleDeg} onChange={(v) => set((d) => void (d.orientation.northAngleDeg = v))} hint="Use a bússola do celular parado no início da estufa, olhando para o fundo: o número que aparece é o ângulo. Vazio = não informado." />
         </div>
       </Section>
 
