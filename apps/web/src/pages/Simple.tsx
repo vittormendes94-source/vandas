@@ -10,7 +10,6 @@ import {
   formatTime,
   irrigationAdvice,
   localDateTimeString,
-  meanAcrossSensors,
   readingFromDto,
   simplePump,
   simpleStatus,
@@ -19,7 +18,7 @@ import {
   trendOf,
   valueTone,
 } from '@orq/core';
-import type { AppConfig, AutomationStatusDto, IrrigationAdvice, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, SimpleStatus, Snapshot, Trend, ValueTone } from '@orq/core';
+import type { AppConfig, AutomationStatusDto, Bucket, IrrigationAdvice, IrrigationsSummary, MeanPoint, Quantity, Reading, SimpleLevel, SimpleStatus, Snapshot, Trend, ValueTone } from '@orq/core';
 import { SmartMap } from '../components/SmartMap';
 import { PushToggle } from '../components/PushToggle';
 import { Forecast, OutdoorNow, useWeather } from '../components/Weather';
@@ -52,8 +51,8 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number
     return h ? bucketsFromHistory(h) : [];
   }, [useLong, histLong.data, hist.data]);
   const bin = useLong ? HOUR : 15 * MIN;
-  const tLine = useMemo(() => meanAcrossSensors(buckets, 'temperature', sensorIds, bin), [buckets, sensorIds, bin]);
-  const hLine = useMemo(() => meanAcrossSensors(buckets, 'humidity', sensorIds, bin), [buckets, sensorIds, bin]);
+  const tLine = useMemo(() => holdMean(buckets, 'temperature', sensorIds, bin), [buckets, sensorIds, bin]);
+  const hLine = useMemo(() => holdMean(buckets, 'humidity', sensorIds, bin), [buckets, sensorIds, bin]);
   const chartFrom = useLong ? longRange!.from : (range?.from ?? 0);
   const today = useMemo(() => {
     if (!hist.data || hist.data.resolution !== 'raw') return null;
@@ -432,6 +431,39 @@ function AdviceCard({ advice, automation, nowMs }: { advice: IrrigationAdvice; a
 
 /** Linha das últimas 24 h (média dos sensores). Trechos sem todos os sensores ficam em branco, como no painel. */
 /**
+ * Média dos sensores por intervalo, mantendo o último valor de cada sensor por até 1 h (o SwitchBot só grava
+ * quando o valor muda; sem isso a linha fica cheia de buracos). Só entra o intervalo com todos os sensores.
+ */
+function holdMean(buckets: Bucket[], q: Quantity, ids: string[], bin: number): MeanPoint[] {
+  if (!buckets.length || !ids.length) return [];
+  const HOLD = HOUR;
+  const per = new Map<string, Bucket[]>();
+  for (const b of buckets) per.set(b.sensorId, [...(per.get(b.sensorId) ?? []), b]);
+  for (const v of per.values()) v.sort((a, b) => a.t - b.t);
+  const t0 = Math.floor(Math.min(...buckets.map((b) => b.t)) / bin) * bin;
+  const t1 = Math.max(...buckets.map((b) => b.t));
+  const idx = new Map(ids.map((id) => [id, -1]));
+  const out: MeanPoint[] = [];
+  for (let t = t0; t <= t1 + bin; t += bin) {
+    let sum = 0;
+    let n = 0;
+    for (const id of ids) {
+      const arr = per.get(id) ?? [];
+      let i = idx.get(id)!;
+      while (i + 1 < arr.length && arr[i + 1]!.t < t + bin) i++;
+      idx.set(id, i);
+      const b = arr[i];
+      if (b && t + bin - b.t <= HOLD + bin) {
+        sum += q === 'temperature' ? b.tAvg : b.hAvg;
+        n++;
+      }
+    }
+    if (n === ids.length) out.push({ t: Math.min(t + bin, t1), v: sum / n } as MeanPoint);
+  }
+  return out;
+}
+
+/**
  * Linha das últimas horas (média dos sensores), suavizada, com tendência e projeção.
  * Tendência: reta de mínimos quadrados sobre as últimas 3 h; projeção: essa reta estendida por até 2 h,
  * tracejada. É uma extrapolação simples (não considera sol, chuva ou irrigação).
@@ -486,7 +518,16 @@ function Spark({ points, from, to, color, suffix, digits, gapMs = 45 * MIN }: { 
     const c2y = y(p.v) - (y(p3.v) - y(p1.v)) / 6;
     d += `C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)} `;
   });
-  const fill = `${d}L${x(last.t).toFixed(1)} ${H} L${x(sm[0]!.t).toFixed(1)} ${H} Z`;
+  // preenchimento: um polígono por trecho contínuo
+  let fill = '';
+  let segStart = 0;
+  sm.forEach((p, i) => {
+    const end = i === sm.length - 1 || sm[i + 1]!.t - p.t > gapMs;
+    if (!end) return;
+    const seg = sm.slice(segStart, i + 1);
+    if (seg.length > 1) fill += `M${x(seg[0]!.t).toFixed(1)} ${H} ${seg.map((q) => `L${x(q.t).toFixed(1)} ${y(q.v).toFixed(1)}`).join(' ')} L${x(p.t).toFixed(1)} ${H} Z `;
+    segStart = i + 1;
+  });
   const gid = `g${color.replace(/[^a-z]/gi, '')}`;
   return (
     <div className="tvp__spark-wrap">
