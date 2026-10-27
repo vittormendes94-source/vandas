@@ -703,3 +703,5 @@ html.tv button, html.tv a { cursor: pointer; }
 .report__todo ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.45rem; }
 .report__todo-atencao::marker { color: var(--amber); }
 .report__todo-ok::marker { color: var(--green); }
+/* iPhone/Android instalado: não deixar a barra de status (relógio, notch) cobrir o conteúdo. */
+body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
