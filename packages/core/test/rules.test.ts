@@ -67,3 +67,26 @@ describe('regras de irrigação', () => {
     ]);
   });
 });
+
+describe('o que fazer (insights da semana)', () => {
+  it('aponta ar seco no meio do dia, noites frias e o ponto diferente', async () => {
+    const { weeklyInsights, defaultConfig } = await import('../src');
+    const c = { ...defaultConfig(), alerts: { temperature: { min: 24, max: 30 }, humidity: { min: 70, max: 80 }, dpv: { min: null, max: null } }, nightTemperature: { from: '18:00', to: '06:00', limits: { min: 18, max: 22 } } };
+    const b = [];
+    const base = Date.UTC(2026, 9, 20, 3); // 00:00 em São Paulo
+    for (let h = 0; h < 72; h++) {
+      const t = base + h * 3600e3;
+      const hr = h % 24;
+      const temp = hr < 6 ? 16 : hr < 18 ? 27 : 20;
+      const hum = hr >= 11 && hr < 15 ? 60 : 75;
+      for (const [id, dt] of [['s1', 0], ['s2', 0], ['s3', 1.5]] as const) b.push({ sensorId: id, t, tAvg: temp + dt, tMin: temp, tMax: temp, hAvg: hum, hMin: hum, hMax: hum, n: 1 });
+    }
+    const r = weeklyInsights(b, c);
+    const titles = r.map((x) => x.title).join(' | ');
+    expect(titles).toContain('Noites frias');
+    expect(titles).toContain('Ar seco');
+    expect(titles).toContain('entre 11h e 15h');
+    expect(titles).toContain('Sensor 3 difere');
+    expect(r.find((x) => x.title.startsWith('Ar seco'))!.action).toContain('10h');
+  });
+});

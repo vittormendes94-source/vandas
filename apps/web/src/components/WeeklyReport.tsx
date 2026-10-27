@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HOUR, bucketsFromHistory, fmtNum, formatIrrigationDuration } from '@orq/core';
+import { HOUR, activeAlerts, bucketsFromHistory, fmtNum, formatIrrigationDuration, weeklyInsights } from '@orq/core';
 import type { AppConfig, AutomationLogEntryDto, Bucket, IrrigationsResponse } from '@orq/core';
 import { api } from '../lib/api';
 
@@ -31,7 +31,11 @@ export function WeeklyReport({ config, nowMs }: { config: AppConfig; nowMs: numb
     const mx = d.buckets.reduce((a, b) => ((q === 'temperature' ? b.tMax : b.hMax) > (q === 'temperature' ? a.tMax : a.hMax) ? b : a));
     const mean = d.buckets.reduce((s, b) => s + avg(b), 0) / d.buckets.length;
     const lim = config.alerts[q];
-    const hours = new Set(d.buckets.filter((b) => (lim.min !== null && avg(b) < lim.min) || (lim.max !== null && avg(b) > lim.max)).map((b) => b.t)).size;
+    const out = (b: Bucket) => {
+      const l = activeAlerts(config, b.t)[q];
+      return (l.min !== null && avg(b) < l.min) || (l.max !== null && avg(b) > l.max);
+    };
+    const hours = new Set(d.buckets.filter(out).map((b) => b.t)).size;
     const bySensor = new Map<string, number[]>();
     for (const b of d.buckets) bySensor.set(b.sensorId, [...(bySensor.get(b.sensorId) ?? []), avg(b)]);
     const means = [...bySensor].map(([id, v]) => ({ id, m: v.reduce((a, x) => a + x, 0) / v.length })).sort((a, b) => b.m - a.m);
@@ -73,6 +77,22 @@ export function WeeklyReport({ config, nowMs }: { config: AppConfig; nowMs: numb
       </div>
       {err && <div className="empty">{err}</div>}
       {!d && !err && <div className="empty">Calculando…</div>}
+      {d && (
+        <div className="report__todo">
+          <h3>O que fazer</h3>
+          {!(config.alerts.temperature.min ?? config.alerts.temperature.max ?? config.alerts.humidity.min ?? config.alerts.humidity.max) ? (
+            <p className="mute">Defina as faixas ideais em Configurações para receber recomendações.</p>
+          ) : (
+            <ul>
+              {weeklyInsights(d.buckets, config).map((x, i) => (
+                <li key={i} className={`report__todo-${x.level}`}>
+                  <b>{x.title}.</b> {x.action}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {d && (
         <div className="report__grid">
           {[

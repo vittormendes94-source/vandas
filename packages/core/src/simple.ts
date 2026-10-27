@@ -44,6 +44,20 @@ export function limitsConfigured(alerts: AppConfig['alerts']): boolean {
   return [alerts.temperature, alerts.humidity, alerts.dpv].some((l) => l.min !== null || l.max !== null);
 }
 
+/** É noite (pelo período configurado) no instante dado, em São Paulo? */
+export function isNight(config: Pick<AppConfig, 'nightTemperature'>, ms: number): boolean {
+  const hm = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(ms);
+  const { from, to } = config.nightTemperature;
+  return from < to ? hm >= from && hm < to : hm >= from || hm < to;
+}
+
+/** Limites valendo agora: de noite, a temperatura usa a faixa da noite (se definida). */
+export function activeAlerts(config: Pick<AppConfig, 'alerts' | 'nightTemperature'>, ms: number): AppConfig['alerts'] {
+  const n = config.nightTemperature.limits;
+  if ((n.min === null && n.max === null) || !isNight(config, ms)) return config.alerts;
+  return { ...config.alerts, temperature: n };
+}
+
 export function simpleStatus(snapshot: Snapshot, config: AppConfig, nowMs: number): SimpleStatus {
   const total = snapshot.sensors.length;
   const linked = config.sensors.filter((s) => s.externalId).length;
@@ -68,7 +82,7 @@ export function simpleStatus(snapshot: Snapshot, config: AppConfig, nowMs: numbe
   const name = (id: string) => config.sensors.find((s) => s.id === id)?.name ?? id;
 
   // Fora da faixa: agrupa por tipo + sentido, mostrando o pior valor.
-  const hits = evaluateAlerts(snapshot, config.alerts);
+  const hits = evaluateAlerts(snapshot, activeAlerts(config, nowMs));
   const groups = new Map<string, AlertHit[]>();
   for (const h of hits) {
     const k = `${h.kind}:${h.direction}`;
