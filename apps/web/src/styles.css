@@ -697,3 +697,9 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__right { flex-direction: row !important; align-items: center !important; gap: 0.8em !important; flex-wrap: wrap; justify-content: flex-end; }
 .tvp__clock { flex-direction: row !important; align-items: baseline !important; gap: 0.5em; }
 .tvp__out { padding: 0.1em 0.8em 0.1em 0.4em; }
+
+.report__todo { margin-bottom: var(--gap); padding: 0.8rem 1rem; border-radius: var(--radius-sm); background: rgba(56, 214, 230, 0.06); border-left: 4px solid var(--cyan); }
+.report__todo h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
+.report__todo ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.45rem; }
+.report__todo-atencao::marker { color: var(--amber); }
+.report__todo-ok::marker { color: var(--green); }

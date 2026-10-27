@@ -6,7 +6,7 @@
  *    horário pulado). Repete no máximo a cada 2 h enquanto o problema continuar.
  */
 import type { D1Database } from '@cloudflare/workers-types';
-import { buildSnapshot, evaluateAlerts, localDateTimeString } from '@orq/core';
+import { activeAlerts, buildSnapshot, evaluateAlerts, localDateTimeString } from '@orq/core';
 import type { AppConfig } from '@orq/core';
 import { automationStatusDto } from './automation';
 import type { Env } from './env';
@@ -158,7 +158,7 @@ export async function runPushAlerts(env: Env, db: D1Database, config: AppConfig,
       active[`sem_sinal:${s.sensor.id}`] = { title: `${s.sensor.name} sem sinal`, body: `Sem leitura há ${Math.round(s.ageMs / 60_000)} min. Confira o hub e as pilhas.` };
     }
   }
-  for (const h of evaluateAlerts(snap, config.alerts)) {
+  for (const h of evaluateAlerts(snap, activeAlerts(config, now))) {
     const what = h.kind === 'temperature' ? (h.direction === 'above' ? 'Estufa quente' : 'Estufa fria') : h.kind === 'humidity' ? (h.direction === 'above' ? 'Umidade muito alta' : 'Ar seco') : 'DPV fora da faixa';
     const name = config.sensors.find((x) => x.id === h.sensorId)?.name ?? h.sensorId;
     active[`faixa:${h.kind}:${h.direction}`] = { title: what, body: `${name}: ${h.value.toFixed(1)} (limite ${h.limit}).` };

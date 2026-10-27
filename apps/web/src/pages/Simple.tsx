@@ -9,6 +9,7 @@ import {
   formatIrrigationDuration,
   formatTime,
   irrigationAdvice,
+  activeAlerts,
   localDateTimeString,
   readingFromDto,
   simplePump,
@@ -183,7 +184,7 @@ function QuantityColumn(p: {
   const u = UNIT[p.quantity];
   const stats = p.quantity === 'temperature' ? p.snap.temperature : p.snap.humidity;
   const mean = stats?.mean ?? null;
-  const limits = p.config.alerts[p.quantity];
+  const limits = activeAlerts(p.config, p.nowMs)[p.quantity];
   const tone = valueTone(mean, limits);
   const trend = trendOf(p.line, u.threshold, p.nowMs);
   const fresh = p.snap.counts.fresh;

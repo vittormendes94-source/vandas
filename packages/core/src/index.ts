@@ -16,3 +16,4 @@ export * from './weather';
 export * from './heatmap';
 export * from './rules';
 export * from './automation';
+export * from './insights';

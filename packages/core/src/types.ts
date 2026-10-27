@@ -82,6 +82,8 @@ export interface AppConfig {
     humidity: Limits;
     dpv: Limits;
   };
+  /** Faixa de temperatura da noite (período from→to, São Paulo). Sem limites = usa a do dia. */
+  nightTemperature: { from: string; to: string; limits: Limits };
   scales: {
     temperature: { min: number; max: number };
     humidity: { min: number; max: number };

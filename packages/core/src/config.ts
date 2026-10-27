@@ -44,6 +44,10 @@ export const AppConfigSchema = z
       .refine((f) => f.freshMaxMin < f.offlineAfterMin, 'O limite de "atrasado" deve ser menor que o de "sem comunicação".'),
     replay: z.strictObject({ toleranceMin: z.number().min(1).max(180) }),
     alerts: z.strictObject({ temperature: limits, humidity: limits, dpv: limits }),
+    /** Faixa de temperatura da NOITE (no período abaixo). Sem limites = usa a mesma do dia. */
+    nightTemperature: z
+      .strictObject({ from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), limits })
+      .default({ from: '18:00', to: '06:00', limits: { min: null, max: null } }),
     scales: z.strictObject({
       temperature: z.strictObject({ min: finite, max: finite }).refine((s) => s.min < s.max, 'Escala inválida.'),
       humidity: z
@@ -130,6 +134,7 @@ export function defaultConfig(): AppConfig {
       layoutProvisional: true,
     },
     pump: { deviceId: null, outlet: 0, maxRunMin: 5 },
+    nightTemperature: { from: '18:00', to: '06:00', limits: { min: null, max: null } },
     irrigationRules: { ...DEFAULT_IRRIGATION_RULES },
     automation: { ...DEFAULT_AUTOMATION, schedule: [] },
     // Cidade informada pelo dono (Patrocínio, MG). Pode ser trocada em Configurações.
