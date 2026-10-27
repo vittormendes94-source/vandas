@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { HOUR, activeAlerts, bucketsFromHistory, fmtNum, formatIrrigationDuration, weeklyInsights } from '@orq/core';
+import { HOUR, activeAlerts, irrigationResponse, responseAdvice, bucketsFromHistory, fmtNum, formatIrrigationDuration, weeklyInsights } from '@orq/core';
 import type { AppConfig, AutomationLogEntryDto, Bucket, IrrigationsResponse } from '@orq/core';
 import { api } from '../lib/api';
 
 interface Data {
   buckets: Bucket[];
+  raw: Map<string, { t: number; h: number }[]>;
   irr: IrrigationsResponse;
   log: AutomationLogEntryDto[];
 }
@@ -17,8 +18,17 @@ export function WeeklyReport({ config, nowMs }: { config: AppConfig; nowMs: numb
   const from = to - 7 * 24 * HOUR;
   useEffect(() => {
     const ac = new AbortController();
-    Promise.all([api.history(from, to, { res: 'hourly', signal: ac.signal }), api.irrigations(from, to, ac.signal), api.automationLog(from, to, ac.signal)])
-      .then(([h, irr, log]) => setD({ buckets: bucketsFromHistory(h), irr, log: log.entries }))
+    Promise.all([
+      api.history(from, to, { res: 'hourly', signal: ac.signal }),
+      api.irrigations(from, to, ac.signal),
+      api.automationLog(from, to, ac.signal),
+      api.history(to - 48 * HOUR, to, { res: 'raw', signal: ac.signal }),
+    ])
+      .then(([h, irr, log, raw]) => {
+        const m = new Map<string, { t: number; h: number }[]>();
+        for (const se of raw.series) m.set(se.sensorId, se.rows.map((r) => ({ t: r[0] as number, h: r[2] as number })));
+        setD({ buckets: bucketsFromHistory(h), irr, log: log.entries, raw: m });
+      })
       .catch((e) => (e as Error).name !== 'AbortError' && setErr((e as Error).message));
     return () => ac.abort();
   }, [from, to]);
@@ -138,6 +148,24 @@ export function WeeklyReport({ config, nowMs }: { config: AppConfig; nowMs: numb
               {peakHours().length === 0 && <li className="mute">Sem dados suficientes ainda.</li>}
             </ul>
             <p className="small mute" style={{ margin: '0.3rem 0 0' }}>Pontos que esquentam de manhã recebem sol do leste; à tarde, do oeste.</p>
+          </div>
+          <div className="report__box">
+            <h3>Depois de cada irrigação (raízes)</h3>
+            {(() => {
+              const r = irrigationResponse(ev.filter((e) => Date.parse(e.startedAt) >= to - 48 * HOUR), d.raw);
+              if (!r.length) return <p className="mute">Aparece quando houver irrigações registradas nas últimas 48 h (precisa da bomba conectada).</p>;
+              return (
+                <ul>
+                  {r.map((x) => (
+                    <li key={x.sensorId}>
+                      <b>{name(x.sensorId)}</b>: sobe <b>{x.rise} {x.rise === 1 ? 'ponto' : 'pontos'}</b>, volta ao normal em <b>{x.recoverMin === null ? 'mais de 12 h' : x.recoverMin >= 60 ? `${Math.floor(x.recoverMin / 60)} h ${String(x.recoverMin % 60).padStart(2, '0')}` : `${x.recoverMin} min`}</b>
+                      <br />
+                      <span className="small mute">{responseAdvice(x)}</span>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
           </div>
           <div className="report__box">
             <h3>Irrigação</h3>
