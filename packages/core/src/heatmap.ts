@@ -297,6 +297,16 @@ export function heatStops(q: Quantity, lo: number, hi: number): ColorStop[] {
     [0.87, '#ff8a1c'],
     [1, '#e0221f'],
   ];
-  const r = q === 'temperature' ? ramp : ramp.map(([p, c]) => [1 - p, c] as [number, string]).reverse();
+  // Umidade com paleta própria (seco = marrom/amarelo, úmido = azul), para não ficar igual ao mapa de calor
+  // quando o ponto mais quente também é o mais seco.
+  const wet: [number, string][] = [
+    [0, '#7a3e0f'],
+    [0.2, '#c47a22'],
+    [0.4, '#f0c94a'],
+    [0.6, '#7fd6b4'],
+    [0.8, '#2b9fd9'],
+    [1, '#2338b0'],
+  ];
+  const r = q === 'temperature' ? ramp : wet;
   return r.map(([p, c]) => ({ v: lo + p * (hi - lo), rgb: hex(c) }));
 }
