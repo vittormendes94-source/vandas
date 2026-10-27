@@ -83,7 +83,7 @@ export function History({ config, nowMs }: { config: AppConfig | null; nowMs: nu
             q === 'temperature' ? { t: b.t, v: b.tAvg, lo: hourly ? b.tMin : undefined, hi: hourly ? b.tMax : undefined } : { t: b.t, v: b.hAvg, lo: hourly ? b.hMin : undefined, hi: hourly ? b.hMax : undefined },
           ),
         }));
-      if (showMean) out.push({ id: 'mean', name: `Média dos ${ids.length} sensores`, color: MEAN_COLOR, points: meanAcrossSensors(buckets, q, ids, meanBin).map((p) => ({ t: p.t, v: p.v })) });
+      if (showMean) out.push({ id: 'mean', name: `Média dos ${ids.length} sensores`, color: MEAN_COLOR, points: meanAcrossSensors(buckets, q, ids, meanBin, ids.length, 60 * 60_000).map((p) => ({ t: p.t, v: p.v })) });
       return out;
     };
     return { tSeries: mk('temperature'), hSeries: mk('humidity') };

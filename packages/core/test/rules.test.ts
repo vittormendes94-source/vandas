@@ -105,3 +105,16 @@ describe('depois de cada irrigação', () => {
     expect(responseAdvice(r[1]!)).toContain('Subida pequena');
   });
 });
+
+describe('média com último valor mantido', () => {
+  it('preenche intervalos sem leitura por até 1 h', async () => {
+    const { meanAcrossSensors } = await import('../src');
+    const M = 60_000;
+    const b = (id: string, t: number, v: number) => ({ sensorId: id, t, tAvg: v, tMin: v, tMax: v, hAvg: v, hMin: v, hMax: v, n: 1 });
+    const data = [b('a', 0, 20), b('b', 5 * M, 22), b('a', 40 * M, 21)];
+    expect(meanAcrossSensors(data, 'temperature', ['a', 'b'], 10 * M)).toHaveLength(1);
+    const p = meanAcrossSensors(data, 'temperature', ['a', 'b'], 10 * M, 2, 60 * M);
+    expect(p.length).toBeGreaterThanOrEqual(6);
+    expect(p[0]!.v).toBe(21);
+  });
+});
