@@ -470,6 +470,7 @@ function holdMean(buckets: Bucket[], q: Quantity, ids: string[], bin: number): M
  * tracejada. É uma extrapolação simples (não considera sol, chuva ou irrigação).
  */
 function Spark({ points, from, to, color, suffix, digits, gapMs = 45 * MIN }: { points: MeanPoint[]; from: number; to: number; color: string; suffix: string; digits: number; gapMs?: number }) {
+  const [hover, setHover] = useState<number | null>(null);
   if (points.length < 2 || to <= from) return <div className="tvp__spark tvp__spark--empty">sem dados ainda</div>;
   // média móvel de 3 pontos
   const sm = points.map((p, i) => {
@@ -531,7 +532,30 @@ function Spark({ points, from, to, color, suffix, digits, gapMs = 45 * MIN }: { 
   });
   const gid = `g${color.replace(/[^a-z]/gi, '')}`;
   return (
-    <div className="tvp__spark-wrap">
+    <div
+      className="tvp__spark-wrap"
+      onPointerMove={(e) => {
+        const r = (e.currentTarget.querySelector('.tvp__spark-plot') as HTMLElement).getBoundingClientRect();
+        const f = (e.clientX - r.left) / r.width;
+        const t = from + f * (end - from);
+        if (t > to) return setHover(null);
+        let bi = 0;
+        sm.forEach((p, i) => {
+          if (Math.abs(p.t - t) < Math.abs(sm[bi]!.t - t)) bi = i;
+        });
+        setHover(bi);
+      }}
+      onPointerLeave={() => setHover(null)}
+    >
+      <div className="tvp__spark-yaxis" aria-hidden="true">
+        {[hi, (hi + lo) / 2, lo].map((v, i) => (
+          <span key={i} style={{ top: `${(y(v) / H) * 100}%` }}>
+            {fmtNum(v, digits)}
+            {suffix}
+          </span>
+        ))}
+      </div>
+      <div className="tvp__spark-plot">
       <svg className="tvp__spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
@@ -544,12 +568,26 @@ function Spark({ points, from, to, color, suffix, digits, gapMs = 45 * MIN }: { 
         <path d={fill} fill={`url(#${gid})`} stroke="none" />
         <path d={d} fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         <line x1={x(last.t)} y1={y(last.v)} x2={x(end)} y2={y(projected)} stroke={color} strokeWidth="2.5" strokeDasharray="6 5" opacity="0.8" vectorEffect="non-scaling-stroke" />
+        {[hi, (hi + lo) / 2, lo].map((v, i) => (
+          <line key={i} x1="0" x2={W} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,0.08)" vectorEffect="non-scaling-stroke" />
+        ))}
+        {hover !== null && sm[hover] && <line x1={x(sm[hover]!.t)} x2={x(sm[hover]!.t)} y1="0" y2={H} stroke="rgba(255,255,255,0.6)" vectorEffect="non-scaling-stroke" />}
       </svg>
+      {hover !== null && sm[hover] && (
+        <span className="tvp__spark-tip" style={{ left: `${(x(sm[hover]!.t) / W) * 100}%`, top: `${(y(sm[hover]!.v) / H) * 100}%` }}>
+          <b>
+            {fmtNum(sm[hover]!.v, digits)}
+            {suffix}
+          </b>
+          {new Date(sm[hover]!.t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit' })}
+        </span>
+      )}
       <span className="tvp__spark-proj" style={{ top: `${(y(projected) / H) * 100}%` }}>
         {fmtNum(projected, digits)}
         {suffix}
       </span>
       <span className="tvp__spark-future">previsão {Math.round(horizon / MIN) >= 60 ? `${Math.round(horizon / HOUR)} h` : `${Math.round(horizon / MIN)} min`}</span>
+      </div>
     </div>
   );
 }
