@@ -486,6 +486,17 @@ export async function pollEwelink(env: Env, db: D1Database, config: AppConfig, n
     for (const it of unique) types[`tipo ${it.itemType}`] = (types[`tipo ${it.itemType}`] ?? 0) + 1;
     state.lastList = { total, returned: unique.length, types };
     const devices = unique.map((it) => parseThing(it, now)).filter((d): d is ProviderDevice => d !== null);
+    // Aparelho compartilhado/oculto que a lista não devolve: consulta direto pelo ID informado em Configurações.
+    const wanted = config.pump.deviceId;
+    if (wanted && !devices.some((d) => d.deviceId === wanted) && /^[A-Za-z0-9_-]{1,64}$/.test(wanted)) {
+      try {
+        const st = await call<{ params?: Record<string, unknown> }>(env, state, state.region, `/v2/device/thing/status?type=1&id=${encodeURIComponent(wanted)}&params=switch%7Cswitches`, { method: 'GET', auth: { bearer: tokens.at } });
+        const fromId = parseThing({ itemType: 1, itemData: { deviceid: wanted, name: `Sonoff ${wanted} (por ID)`, online: true, params: st?.params ?? {} } }, now);
+        if (fromId && fromId.kind === 'switch') devices.push(fromId);
+      } catch (e) {
+        logError('ewelink', e, env, { step: 'status_por_id' });
+      }
+    }
     await replaceProviderDevices(db, PROVIDER, devices);
 
     const byId = new Map(devices.map((d) => [d.deviceId, d]));

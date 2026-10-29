@@ -92,6 +92,11 @@ export function createEwelinkMock({ appId, appSecret, region = 'us' }) {
       }
       return json({ error: 0, msg: '', data: { thingList: s.devices, total: s.devices.length } });
     }
+    if (url.pathname === '/v2/device/thing/status' && request.method === 'GET') {
+      if (auth !== `Bearer ${s.at}`) return err(401, 'token invalid');
+      const h = (s.hidden ?? []).find((d) => d.itemData.deviceid === url.searchParams.get('id'));
+      return h ? json({ error: 0, msg: '', data: { params: h.itemData.params } }) : err(405, 'device not found');
+    }
     if (url.pathname === '/v2/device/thing/status' && request.method === 'POST') {
       if (auth !== `Bearer ${s.at}`) return err(401, 'token invalid');
       if (s.failCommands) return err(4002, 'device offline');
