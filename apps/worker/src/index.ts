@@ -1,13 +1,15 @@
 import type { ExecutionContext, ScheduledController } from '@cloudflare/workers-types';
 import { app } from './app';
 import type { Env } from './env';
-import { PROVIDER, pollEwelink } from './ewelink';
+import { PROVIDER, loadState as loadEwelinkState, pollEwelink } from './ewelink';
 import { trackPumpFromDb } from './irrigation';
 import { runAutomation } from './automation';
 import { runPushAlerts } from './push';
-import { pollSwitchbot } from './switchbot';
+import { loadSwitchbotState, pollSwitchbot } from './switchbot';
 import { logError, logInfo } from './logging';
-import { applyRetention, getConfig } from './repo';
+import { applyRetention, getConfig, listProviderDevices } from './repo';
+import { localDateTimeString } from '@orq/core';
+import type { AppConfig } from '@orq/core';
 
 /**
  * Tarefa agendada (wrangler.toml, a cada 2 min):
@@ -15,11 +17,32 @@ import { applyRetention, getConfig } from './repo';
  *  - executa a automação da bomba (horários, proteção, Inching);
  *  - uma vez por dia (06:00 UTC = 03:00 em America/Sao_Paulo) aplica a retenção.
  */
-export async function runScheduled(env: Env, scheduledTime: number): Promise<void> {
+/** Passou o intervalo desde a última leitura (com 30 s de folga para o relógio do agendador)? */
+const due = (last: number | null, everyMin: number, now: number) => last === null || now - last >= everyMin * 60_000 - 30_000;
+
+/** Estamos perto de um horário de irrigação (2 min antes até 20 min depois) ou com a bomba ligada? Aí a bomba é lida a cada 2 min. */
+function pumpIsActive(config: AppConfig, now: number, pumpOn: boolean): boolean {
+  if (pumpOn) return true;
+  const nowMin = Number(localDateTimeString(now).slice(11, 13)) * 60 + Number(localDateTimeString(now).slice(14, 16));
+  return config.automation.schedule.some((t) => {
+    const m = Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    return nowMin >= m - 2 && nowMin <= m + 20;
+  });
+}
+
+export async function runScheduled(env: Env, scheduledTime: number, opts: { always?: boolean } = {}): Promise<void> {
   try {
     const config = await getConfig(env.DB);
     // Sensores (SwitchBot) e bomba (eWeLink) são independentes: a falha de um não impede o outro.
-    const [sb, r] = await Promise.allSettled([pollSwitchbot(env, env.DB, config, scheduledTime), pollEwelink(env, env.DB, config, scheduledTime)]);
+    const sbState = await loadSwitchbotState(env.DB, scheduledTime);
+    const ewState = await loadEwelinkState(env.DB, scheduledTime);
+    const pumpDev = config.pump.deviceId ? (await listProviderDevices(env.DB, PROVIDER)).find((d) => d.deviceId === config.pump.deviceId) : undefined;
+    const pumpOn = pumpDev?.switchState === 'on';
+    const doSb = opts.always || due(sbState.lastPollAt, config.polling.sensorsMin, scheduledTime);
+    const everyPump = pumpIsActive(config, scheduledTime, pumpOn) ? 2 : config.polling.pumpIdleMin;
+    const doEw = opts.always || due(ewState.lastPollAt, everyPump, scheduledTime);
+    const skipped = { ran: false, reason: 'not_due' } as const;
+    const [sb, r] = await Promise.allSettled([doSb ? pollSwitchbot(env, env.DB, config, scheduledTime) : Promise.resolve(skipped), doEw ? pollEwelink(env, env.DB, config, scheduledTime) : Promise.resolve(skipped)]);
     if (sb.status === 'fulfilled' && sb.value.ran && sb.value.reason) logInfo('switchbot', `leitura com falha: ${sb.value.reason}`);
     if (sb.status === 'rejected') logError('switchbot', sb.reason, env);
     if (r.status === 'fulfilled' && r.value.ran && r.value.reason) logInfo('ewelink', `leitura falhou: ${r.value.reason}`);

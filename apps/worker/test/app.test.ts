@@ -318,7 +318,7 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     const T0 = Date.now();
     const tick = async (t: number, state: 'on' | 'off', online = true) => {
       mock.state.devices = [switchThing('bomba01', 'Bomba', { state, online })];
-      await runScheduled(env, t);
+      await runScheduled(env, t, { always: true });
     };
     await tick(T0, 'off');
     await tick(T0 + 2 * MIN, 'on');
@@ -364,7 +364,7 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     // estufa fresca
     await ingest([reading({ sensorId: 's1', temperatureC: 24, measuredAt: iso(T - MIN) })]);
 
-    await runScheduled(env, T);
+    await runScheduled(env, T, { always: true });
     expect(mock.state.commands[0]).toEqual({ id: 'bomba01', params: { switch: 'on' } });
     vi.useFakeTimers({ now: T + MIN, toFake: ['Date'] });
     let l = await live();
@@ -375,18 +375,18 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     expect(l.pump.state).toBe('on');
 
     // próxima rodada: ainda dentro do tempo → só configura o Inching (desliga sozinho em 5 min, no próprio Sonoff)
-    await runScheduled(env, T + 4 * MIN);
+    await runScheduled(env, T + 4 * MIN, { always: true });
     expect(mock.state.commands[1]).toEqual({ id: 'bomba01', params: { pulse: 'on', pulseWidth: 300_000 } });
     expect(mock.state.commands).toHaveLength(2);
 
     // passou de 5 min → o servidor desliga (segunda camada)
-    await runScheduled(env, T + 6 * MIN);
+    await runScheduled(env, T + 6 * MIN, { always: true });
     expect(mock.state.commands[2]).toEqual({ id: 'bomba01', params: { switch: 'off' } });
 
     // ligada à mão com a estufa quente → desliga pelas regras
     await ingest([reading({ sensorId: 's1', temperatureC: 33, measuredAt: iso(T) })]);
     mock.state.devices[0].itemData.params.switch = 'on';
-    await runScheduled(env, T + 10 * MIN);
+    await runScheduled(env, T + 10 * MIN, { always: true });
     expect(mock.state.commands[3]).toEqual({ id: 'bomba01', params: { switch: 'off' } });
 
     const log = (await (await call(`/api/automation/log?from=${iso(T - DAY)}&to=${iso(T + DAY)}`)).json()) as { entries: { action: string; reason: string; ok: boolean }[] };
@@ -407,16 +407,16 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
       c.automation = { ...c.automation, schedule: [slot], syncInching: false };
     });
     mock.state.failCommands = true;
-    await runScheduled(env, T);
+    await runScheduled(env, T, { always: true });
     vi.useFakeTimers({ now: T + MIN, toFake: ['Date'] });
     let l = await live();
     vi.useRealTimers();
     expect(l.automation.lastCommand).toMatchObject({ action: 'on', ok: false });
     expect(l.automation.slots[0]).toMatchObject({ status: 'adiado' });
     // dentro do intervalo de espera, não insiste
-    await runScheduled(env, T + 2 * MIN);
+    await runScheduled(env, T + 2 * MIN, { always: true });
     mock.state.failCommands = false;
-    await runScheduled(env, T + 4 * MIN);
+    await runScheduled(env, T + 4 * MIN, { always: true });
     expect(mock.state.commands).toEqual([{ id: 'bomba01', params: { switch: 'on' } }]);
     vi.useFakeTimers({ now: T + 5 * MIN, toFake: ['Date'] });
     l = await live();
@@ -469,7 +469,7 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     mock.state.devices = [climateThing('snzb01', 'S1', { t: 25, h: 70, trigTime: Date.now() - MIN })];
     await connect(mock);
     await link((c) => void (c.sensors[0]!.externalId = 'snzb01'));
-    await runScheduled(env, Date.now());
+    await runScheduled(env, Date.now(), { always: true });
     expect((await live()).latest.s1?.temperatureC).toBe(25);
   });
 });
@@ -688,7 +688,7 @@ describe('SwitchBot (origem dos sensores Outdoor Meter, sem computador no local)
     const mock = setup();
     const e = sbEnv();
     await linkAll();
-    await runScheduled(e, Date.now());
+    await runScheduled(e, Date.now(), { always: true });
     expect(mock.state.calls).toContain('GET /v1.1/devices');
     expect((await live(e)).integration.switchbot.lastSuccessAt).not.toBeNull();
   });
@@ -815,15 +815,52 @@ describe('avisos no celular (Web Push)', () => {
       bodies.push(new Uint8Array(init.body as Uint8Array));
       return new Response(null, { status });
     });
-    await runScheduled(env, T);
+    await runScheduled(env, T, { always: true });
     expect(bodies).toHaveLength(1);
     expect(JSON.parse(await decrypt(s, bodies[0]!)).title).toBe('Estufa quente');
-    await runScheduled(env, T + 2 * MIN);
+    await runScheduled(env, T + 2 * MIN, { always: true });
     expect(bodies).toHaveLength(1); // não repete
     status = 410;
     await env.DB.prepare("DELETE FROM settings WHERE key = 'push_alerts'").run(); // força novo envio
-    await runScheduled(env, T + 4 * MIN);
+    await runScheduled(env, T + 4 * MIN, { always: true });
     const left = await env.DB.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').first<{ n: number }>();
     expect(left!.n).toBe(0);
+  });
+});
+
+describe('economia da cota: leituras espaçadas', () => {
+  it('bomba lida a cada 10 min em repouso e a cada 2 min perto do horário de irrigação; lista de casas do eWeLink é usada', async () => {
+    const mock = createEwelinkMock({ appId: APP_ID, appSecret: APP_SECRET });
+    vi.stubGlobal('fetch', (input: RequestInfo, init?: RequestInit) => mock.fetch(input, init));
+    mock.state.devices = [switchThing('bomba01', 'Bomba', { state: 'off' })];
+    const r = await post('/api/ewelink/authorize', {}, ADMIN);
+    const { url } = (await r.json()) as { url: string };
+    const login = await mock.handle(new Request(url));
+    const cb = new URL(login.headers.get('location')!);
+    await call(cb.pathname + cb.search);
+    const c = await getConfig(env.DB);
+    c.pump.deviceId = 'bomba01';
+    c.automation = { ...c.automation, schedule: [] };
+    await saveConfig(env.DB, c, Date.now());
+    const T = Math.floor(Date.now() / MIN) * MIN;
+    const polls = () => mock.state.calls.filter((x: string) => x === 'GET /v2/device/thing').length;
+    await runScheduled(env, T);
+    expect(polls()).toBe(1);
+    expect(mock.state.calls).toContain('GET /v2/family');
+    await runScheduled(env, T + 2 * MIN);
+    await runScheduled(env, T + 4 * MIN);
+    await runScheduled(env, T + 8 * MIN);
+    expect(polls()).toBe(1); // em repouso: nada de novo antes de 10 min
+    await runScheduled(env, T + 10 * MIN);
+    expect(polls()).toBe(2);
+    expect(mock.state.calls.filter((x: string) => x === 'GET /v2/family')).toHaveLength(1); // casas só descobertas uma vez
+    // perto de um horário de irrigação: a cada 2 min
+    const slot = localDateTimeString(T + 12 * MIN).slice(11, 16);
+    const c2 = await getConfig(env.DB);
+    c2.automation = { ...c2.automation, schedule: [slot], mode: 'protecao' };
+    await saveConfig(env.DB, c2, Date.now());
+    await runScheduled(env, T + 12 * MIN);
+    await runScheduled(env, T + 14 * MIN);
+    expect(polls()).toBe(4);
   });
 });

@@ -80,6 +80,10 @@ export function createEwelinkMock({ appId, appSecret, region = 'us' }) {
       return json({ error: 0, msg: '', data: { at: s.at, rt: s.rt } });
     }
 
+    if (url.pathname === '/v2/family' && request.method === 'GET') {
+      if (auth !== `Bearer ${s.at}`) return err(401, 'token invalid');
+      return json({ error: 0, msg: '', data: { familyList: [{ id: 'fam1', name: 'My Home', index: 0 }], currentFamilyId: 'fam1' } });
+    }
     if (url.pathname === '/v2/device/thing' && request.method === 'GET') {
       if (auth !== `Bearer ${s.at}`) return err(401, 'token invalid');
       if (s.expireNext) {

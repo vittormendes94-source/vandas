@@ -73,6 +73,10 @@ export interface EwelinkState {
   calls: number;
   atExpiresAt: number | null;
   rtExpiresAt: number | null;
+  /** Famílias (casas) da conta, para listar aparelhos de todas. Atualizada em "Ler agora". */
+  familyIds?: string[];
+  /** O que o eWeLink devolveu na última leitura (diagnóstico). */
+  lastList?: { total: number | null; returned: number; types: Record<string, number> };
 }
 
 interface Tokens {
@@ -130,6 +134,7 @@ export async function statusDto(env: Env, db: D1Database, now: number): Promise<
     lastError: s.lastError ? { ...s.lastError, at: new Date(s.lastError.at).toISOString() } : null,
     consecutiveFailures: s.consecutiveFailures,
     callsThisMonth: s.calls,
+    lastList: s.lastList ?? null,
     monthlyLimit: EWELINK_MONTHLY_LIMIT,
     accessExpiresAt: iso(s.atExpiresAt),
     refreshExpiresAt: iso(s.rtExpiresAt),
@@ -341,7 +346,7 @@ const onOff = (v: unknown): 'on' | 'off' | null => (v === 'on' || v === 'off' ? 
 
 /** Interpreta um dispositivo da lista `thingList`. Formatos não documentados ficam como "unsupported" (não entram). */
 export function parseThing(item: ThingItem, seenAt: number): ProviderDevice | null {
-  if (item.itemType !== 1 && item.itemType !== 2) return null; // 3 = grupo
+  if (item.itemType === 3) return null; // 3 = grupo
   const d = item.itemData;
   if (!d?.deviceid || !/^[A-Za-z0-9_-]{1,64}$/.test(d.deviceid)) return null;
   const p = d.params ?? {};
@@ -436,16 +441,51 @@ export async function pollEwelink(env: Env, db: D1Database, config: AppConfig, n
       tokens = await refresh(env, db, state, tokens, now);
       await new Promise((r) => setTimeout(r, 600)); // intervalo mínimo entre chamadas
     }
-    let data: { thingList?: ThingItem[]; total?: number };
-    try {
-      data = await call(env, state, state.region, '/v2/device/thing?num=0', { method: 'GET', auth: { bearer: tokens.at } });
-    } catch (e) {
-      if (!(e instanceof EwelinkError) || e.code !== 'auth') throw e;
-      tokens = await refresh(env, db, state, tokens, now); // token inválido/expirado: renova e tenta uma vez
-      await new Promise((r) => setTimeout(r, 600));
-      data = await call(env, state, state.region, '/v2/device/thing?num=0', { method: 'GET', auth: { bearer: tokens.at } });
+    const fetchList = async (path: string) => {
+      try {
+        return await call<{ thingList?: ThingItem[]; total?: number }>(env, state, state.region!, path, { method: 'GET', auth: { bearer: tokens!.at } });
+      } catch (e) {
+        if (!(e instanceof EwelinkError) || e.code !== 'auth') throw e;
+        tokens = await refresh(env, db, state, tokens!, now); // token inválido/expirado: renova e tenta uma vez
+        await new Promise((r) => setTimeout(r, 600));
+        return await call<{ thingList?: ThingItem[]; total?: number }>(env, state, state.region!, path, { method: 'GET', auth: { bearer: tokens.at } });
+      }
+    };
+    // Casas da conta: descobre ao conectar / em "Ler agora" (uma chamada) e reaproveita nas leituras automáticas.
+    if (opts.force || !state.familyIds) {
+      try {
+        const fam = await call<{ familyList?: { id?: string }[] }>(env, state, state.region, '/v2/family', { method: 'GET', auth: { bearer: tokens.at } });
+        state.familyIds = (fam?.familyList ?? []).map((f) => String(f.id ?? '')).filter(Boolean);
+      } catch (e) {
+        if (!state.familyIds) state.familyIds = [];
+        logError('ewelink', e, env, { step: 'family' });
+      }
     }
-    const devices = (data?.thingList ?? []).map((it) => parseThing(it, now)).filter((d): d is ProviderDevice => d !== null);
+    const items: ThingItem[] = [];
+    let total: number | null = null;
+    const lists = state.familyIds && state.familyIds.length > 0 ? state.familyIds : [''];
+    for (const fid of lists) {
+      for (let begin = 0; begin < 200; ) {
+        const data = await fetchList(`/v2/device/thing?num=0${begin ? `&beginIndex=${begin}` : ''}${fid ? `&familyid=${encodeURIComponent(fid)}` : ''}`);
+        const got = data?.thingList ?? [];
+        items.push(...got);
+        if (typeof data?.total === 'number') total = (total ?? 0) + (begin === 0 ? data.total : 0);
+        begin += got.length;
+        if (got.length === 0 || (typeof data?.total === 'number' && begin >= data.total)) break;
+        await new Promise((r) => setTimeout(r, 600));
+      }
+    }
+    const seen = new Set<string>();
+    const unique = items.filter((it) => {
+      const id = it.itemData?.deviceid ?? '';
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    const types: Record<string, number> = {};
+    for (const it of unique) types[`tipo ${it.itemType}`] = (types[`tipo ${it.itemType}`] ?? 0) + 1;
+    state.lastList = { total, returned: unique.length, types };
+    const devices = unique.map((it) => parseThing(it, now)).filter((d): d is ProviderDevice => d !== null);
     await replaceProviderDevices(db, PROVIDER, devices);
 
     const byId = new Map(devices.map((d) => [d.deviceId, d]));
