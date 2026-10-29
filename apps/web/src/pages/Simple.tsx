@@ -8,6 +8,7 @@ import {
   formatAge,
   formatIrrigationDuration,
   formatTime,
+  irrigationChange,
   irrigationAdvice,
   activeAlerts,
   localDateTimeString,
@@ -360,6 +361,7 @@ function IrrigationColumn({
                     </span>
                     <span className="tvp__list-dur">{running ? `ligada há ${formatIrrigationDuration(nowMs - start)}` : formatIrrigationDuration(e.durationMs)}</span>
                     {e.endReason === 'sem_sinal' && <span className="tvp__list-note">sem sinal no fim</span>}
+                    <IrrigationEffect e={e} />
                   </li>
                 );
               })}
@@ -369,6 +371,19 @@ function IrrigationColumn({
         </>
       )}
     </section>
+  );
+}
+
+/** O que mudou com a irrigação: média dos sensores 1 min antes de ligar × 1 min depois de desligar. */
+function IrrigationEffect({ e }: { e: IrrigationsSummary['last'][number] }) {
+  if (e.endedAt === null) return <span className="tvp__list-fx">medindo o efeito ao terminar…</span>;
+  const c = irrigationChange(e);
+  if (!c) return <span className="tvp__list-fx">{e.before ? 'medindo o efeito…' : 'sem medição de antes'}</span>;
+  const sign = (v: number, d: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmtNum(Math.abs(v), d)}`;
+  return (
+    <span className="tvp__list-fx">
+      Umidade <b>{sign(c.dHum, 0)} pts</b> · Temp. <b>{sign(c.dTemp, 1)}°</b> · em {c.minutes} min
+    </span>
   );
 }
 

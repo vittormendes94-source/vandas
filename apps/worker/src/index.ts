@@ -2,7 +2,7 @@ import type { ExecutionContext, ScheduledController } from '@cloudflare/workers-
 import { app } from './app';
 import type { Env } from './env';
 import { PROVIDER, loadState as loadEwelinkState, pollEwelink } from './ewelink';
-import { trackPumpFromDb } from './irrigation';
+import { pendingAfter, saveAfter, trackPumpFromDb } from './irrigation';
 import { runAutomation } from './automation';
 import { runPushAlerts } from './push';
 import { loadSwitchbotState, pollSwitchbot } from './switchbot';
@@ -39,7 +39,10 @@ export async function runScheduled(env: Env, scheduledTime: number, opts: { alwa
     const pumpOn = pumpDev?.switchState === 'on';
     const pre = preCheck(config, scheduledTime);
     // bomba ligada: a cada 2 min (para confirmar o desligamento); antes de irrigar: conferência única; senão no ritmo lento
-    const doSb = opts.always || due(sbState.lastPollAt, pre ? 3 : config.polling.sensorsMin, scheduledTime);
+    // Depois de uma irrigação: 1 min após o fim, lê os sensores uma vez para registrar o que mudou.
+    const post = await pendingAfter(env.DB, scheduledTime).catch(() => null);
+    const postDue = !!post && scheduledTime - post.endedAt >= 60_000 && (sbState.lastPollAt ?? 0) < post.endedAt + 60_000;
+    const doSb = opts.always || postDue || due(sbState.lastPollAt, pre ? 3 : config.polling.sensorsMin, scheduledTime);
     const doEw = opts.always || due(ewState.lastPollAt, pumpOn ? 2 : pre ? 3 : config.polling.pumpIdleMin, scheduledTime);
     const skipped = { ran: false, reason: 'not_due' } as const;
     const [sb, r] = await Promise.allSettled([doSb ? pollSwitchbot(env, env.DB, config, scheduledTime) : Promise.resolve(skipped), doEw ? pollEwelink(env, env.DB, config, scheduledTime) : Promise.resolve(skipped)]);
@@ -47,6 +50,7 @@ export async function runScheduled(env: Env, scheduledTime: number, opts: { alwa
     if (sb.status === 'rejected') logError('switchbot', sb.reason, env);
     if (r.status === 'fulfilled' && r.value.ran && r.value.reason) logInfo('ewelink', `leitura falhou: ${r.value.reason}`);
     if (r.status === 'rejected') logError('ewelink', r.reason, env);
+    if (post && scheduledTime - post.endedAt >= 60_000 && (doSb || (sbState.lastPollAt ?? 0) >= post.endedAt + 60_000)) await saveAfter(env.DB, config, post.startedAt, scheduledTime).catch((e) => logError('irrigacao', e, env));
     // Irrigações: aplica o último estado conhecido da bomba (também fecha uma irrigação se o Sonoff sumir).
     await trackPumpFromDb(env.DB, config, PROVIDER, scheduledTime).catch((e) => logError('irrigacao', e, env));
     // Automação da bomba: liga nos horários e desliga fora das regras ou do tempo.
