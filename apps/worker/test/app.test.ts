@@ -299,7 +299,7 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     await link((c) => void (c.pump.deviceId = 'bomba01'));
     await pollEwelink(env, env.DB, await getConfig(env.DB), Date.now());
     mock.state.quota = true;
-    const later = Date.now() + 40 * MIN;
+    const later = Date.now() + 15 * MIN;
     expect(await pollEwelink(env, env.DB, await getConfig(env.DB), later)).toMatchObject({ ran: true, reason: 'quota' });
     const l = await live();
     expect(l.integration.ewelink.lastError?.code).toBe('quota');
@@ -865,6 +865,7 @@ describe('economia da cota: leituras espaçadas', () => {
     const c = await getConfig(env.DB);
     c.pump.deviceId = 'bomba01';
     c.automation = { ...c.automation, schedule: [] };
+    c.polling = { sensorsMin: 20, pumpIdleMin: 20 };
     await saveConfig(env.DB, c, Date.now());
     const polls = () => mock.state.calls.filter((x: string) => x === 'GET /v2/device/thing').length;
     expect(polls()).toBe(1); // a leitura feita ao conectar
