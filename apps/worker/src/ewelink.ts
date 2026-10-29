@@ -76,7 +76,7 @@ export interface EwelinkState {
   /** Famílias (casas) da conta, para listar aparelhos de todas. Atualizada em "Ler agora". */
   familyIds?: string[];
   /** O que o eWeLink devolveu na última leitura (diagnóstico). */
-  lastList?: { total: number | null; returned: number; types: Record<string, number> };
+  lastList?: { total: number | null; returned: number; types: Record<string, number>; byId?: string | null };
 }
 
 interface Tokens {
@@ -492,8 +492,12 @@ export async function pollEwelink(env: Env, db: D1Database, config: AppConfig, n
       try {
         const st = await call<{ params?: Record<string, unknown> }>(env, state, state.region, `/v2/device/thing/status?type=1&id=${encodeURIComponent(wanted)}&params=switch%7Cswitches`, { method: 'GET', auth: { bearer: tokens.at } });
         const fromId = parseThing({ itemType: 1, itemData: { deviceid: wanted, name: `Sonoff ${wanted} (por ID)`, online: true, params: st?.params ?? {} } }, now);
-        if (fromId && fromId.kind === 'switch') devices.push(fromId);
+        if (fromId && fromId.kind === 'switch') {
+          devices.push(fromId);
+          state.lastList.byId = 'ok';
+        } else state.lastList.byId = 'resposta sem estado ligado/desligado';
       } catch (e) {
+        state.lastList.byId = e instanceof EwelinkError ? `${e.code}: ${e.message}` : String((e as Error).message ?? e);
         logError('ewelink', e, env, { step: 'status_por_id' });
       }
     }

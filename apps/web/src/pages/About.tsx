@@ -131,6 +131,7 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
                   <div className="tiny mute">Aparelhos que o eWeLink informou</div>
                   <div className="strong">{eu.lastList.returned}{eu.lastList.total !== null && eu.lastList.total !== eu.lastList.returned ? ` de ${eu.lastList.total}` : ''}</div>
                   <div className="tiny mute">{Object.entries(eu.lastList.types).map(([k, v]) => `${v}× ${k}`).join(' · ')}</div>
+                  {eu.lastList.byId && <div className="tiny mute">Sonoff por ID: {eu.lastList.byId}</div>}
                 </div>
               )}
             <div>

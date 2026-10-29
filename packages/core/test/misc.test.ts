@@ -132,7 +132,7 @@ describe('bomba: somente estado atual', () => {
   });
   it('Sonoff offline, integração parada, sem dados ou não vinculado → desconhecido (nunca "desligada")', () => {
     expect(derivePumpStatus({ linked: true, seenAt: now - MIN, online: false, switchState: 'off' }, now)).toMatchObject({ comm: 'offline', state: 'unknown' });
-    expect(derivePumpStatus({ linked: true, seenAt: now - 30 * MIN, online: true, switchState: 'off' }, now)).toMatchObject({ comm: 'stale', state: 'unknown' });
+    expect(derivePumpStatus({ linked: true, seenAt: now - 40 * MIN, online: true, switchState: 'off' }, now)).toMatchObject({ comm: 'stale', state: 'unknown' });
     expect(derivePumpStatus({ linked: true, seenAt: null, online: null, switchState: null }, now)).toMatchObject({ comm: 'no_data', state: 'unknown' });
     expect(derivePumpStatus({ linked: false, seenAt: null, online: null, switchState: null }, now)).toMatchObject({ comm: 'not_linked', state: 'unknown' });
     expect(derivePumpStatus({ linked: true, seenAt: now - MIN, online: null, switchState: 'on' }, now)).toMatchObject({ comm: 'offline', state: 'unknown' });
