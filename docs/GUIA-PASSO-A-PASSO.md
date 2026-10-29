@@ -16,7 +16,7 @@ Os dois estão em GitHub → repositório `vandas` → Settings → Secrets and 
   - **Visão TV** (para sua mãe);
   - **Painel completo**;
   - **Histórico**.
-- Leitura automática a cada 2 min dos sensores SwitchBot. Token e Secret já estão cadastrados.
+- Leitura automática a cada 20 min dos sensores SwitchBot (e uma conferência pouco antes de cada irrigação). Token e Secret já estão cadastrados.
 - Clima de **Patrocínio, MG**: lá fora agora e os próximos 7 dias (azul = chuva provável; laranja = sol/calor).
 - Mapa de calor e de umidade da estufa inteira (12 × 5 m), calculado a partir da posição de cada sensor.
 - Regras de irrigação: padrão **não irrigar acima de 30 °C** na estufa nem com **sol direto acima de 500 W/m²**.
