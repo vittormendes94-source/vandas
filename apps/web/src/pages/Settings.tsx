@@ -261,6 +261,10 @@ export function Settings({ live, meta }: { live: LiveState & { refresh: () => vo
             <span>Sonoff da bomba</span>
             <DeviceSelect devices={devices} kind="switch" value={draft.pump.deviceId} taken={draft.sensors.map((x) => x.externalId ?? '')} onChange={(v) => set((d) => void (d.pump.deviceId = v))} />
           </label>
+          <label className="field">
+            <span>ID manual do Sonoff (se não aparecer na lista)</span>
+            <input className="input" value={draft.pump.deviceId ?? ''} placeholder="ex.: 1000055189" onChange={(e) => set((d) => void (d.pump.deviceId = e.target.value.trim() || null))} />
+          </label>
           <Num label="Canal" min={0} max={3} value={draft.pump.outlet} onChange={(v) => set((d) => void (d.pump.outlet = (v as number) || 0))} hint="0 = primeiro canal. Só muda em Sonoff de vários canais." />
           <Num
             label="Tempo de cada irrigação"

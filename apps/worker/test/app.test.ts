@@ -828,6 +828,26 @@ describe('avisos no celular (Web Push)', () => {
   });
 });
 
+describe('bomba compartilhada fora da lista', () => {
+  it('consulta o Sonoff pelo ID informado quando a lista não o devolve', async () => {
+    const mock = createEwelinkMock({ appId: APP_ID, appSecret: APP_SECRET });
+    vi.stubGlobal('fetch', (input: RequestInfo, init?: RequestInit) => mock.fetch(input, init));
+    mock.state.devices = [switchThing('luz01', 'Luz', { state: 'off' })];
+    mock.state.hidden = [switchThing('1000055189', 'Irrigação Vandas', { state: 'off' })];
+    const r = await post('/api/ewelink/authorize', {}, ADMIN);
+    const { url } = (await r.json()) as { url: string };
+    const login = await mock.handle(new Request(url));
+    const cb = new URL(login.headers.get('location')!);
+    await call(cb.pathname + cb.search);
+    const c = await getConfig(env.DB);
+    c.pump.deviceId = '1000055189';
+    await saveConfig(env.DB, c, Date.now());
+    await pollEwelink(env, env.DB, await getConfig(env.DB), Date.now(), { force: true });
+    const row = await env.DB.prepare("SELECT switch_state FROM provider_devices WHERE device_id = '1000055189'").first<{ switch_state: string }>();
+    expect(row?.switch_state).toBe('off');
+  });
+});
+
 describe('economia da cota: leituras espaçadas', () => {
   it('bomba lida a cada 20 min em repouso e uma conferência pouco antes do horário de irrigação; lista de casas do eWeLink é usada', async () => {
     const mock = createEwelinkMock({ appId: APP_ID, appSecret: APP_SECRET });
