@@ -117,5 +117,6 @@ export const api = {
   switchbotPoll: () => request<{ ran: boolean; reason?: string; devices?: number; inserted?: number }>('/api/switchbot/poll', { method: 'POST', body: {}, admin: true }),
   ewelinkAuthorize: () => request<{ url: string }>('/api/ewelink/authorize', { method: 'POST', body: {}, admin: true }),
   ewelinkPoll: () => request<{ ran: boolean; reason?: string; devices?: number; inserted?: number }>('/api/ewelink/poll', { method: 'POST', body: {}, admin: true }),
+  pumpRefresh: () => request<{ ran: boolean; reason?: string }>('/api/pump/refresh', { method: 'POST', body: {} }),
   ewelinkDisconnect: () => request<{ ok: boolean }>('/api/ewelink/disconnect', { method: 'POST', body: {}, admin: true }),
 };

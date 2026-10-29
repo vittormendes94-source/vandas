@@ -24,14 +24,29 @@ import { SmartMap } from '../components/SmartMap';
 import { PushToggle } from '../components/PushToggle';
 import { Forecast, OutdoorNow, useWeather } from '../components/Weather';
 import { useHistory } from '../hooks/useHistory';
+import { api } from '../lib/api';
 import type { LiveState } from '../hooks/useLive';
 
 /**
  * Painel da TV (65") e visão para quem não é técnico: uma tela fixa, 3 colunas — temperatura, umidade com os
  * aspersores, irrigação. Mesmos dados e regras do painel completo: nada é inventado.
  */
-export function Simple({ live, nowMs, onFull }: { live: LiveState; nowMs: number; onFull: () => void }) {
+export function Simple({ live, nowMs, onFull }: { live: LiveState & { refresh?: () => void }; nowMs: number; onFull: () => void }) {
   const data = live.data;
+  const refreshLive = live.refresh;
+  // Bomba quase em tempo real sem gastar cota: o servidor só lê o eWeLink quando alguém abre/volta ao painel
+  // (e a cada 5 min com a tela visível), no máximo 1 leitura a cada 20 s.
+  useEffect(() => {
+    const ping = () => {
+      if (document.visibilityState === 'hidden') return;
+      api.pumpRefresh().then((r) => { if (r.ran) refreshLive?.(); }).catch(() => {});
+    };
+    ping();
+    const id = setInterval(ping, 5 * MIN);
+    document.addEventListener('visibilitychange', ping);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', ping); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const config = data?.config ?? null;
 
   // Últimas 24 h, ancoradas a cada 5 min (não recarrega a cada atualização da tela).
