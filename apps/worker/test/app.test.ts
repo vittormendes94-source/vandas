@@ -299,7 +299,7 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     await link((c) => void (c.pump.deviceId = 'bomba01'));
     await pollEwelink(env, env.DB, await getConfig(env.DB), Date.now());
     mock.state.quota = true;
-    const later = Date.now() + 15 * MIN;
+    const later = Date.now() + 40 * MIN;
     expect(await pollEwelink(env, env.DB, await getConfig(env.DB), later)).toMatchObject({ ran: true, reason: 'quota' });
     const l = await live();
     expect(l.integration.ewelink.lastError?.code).toBe('quota');
@@ -829,38 +829,43 @@ describe('avisos no celular (Web Push)', () => {
 });
 
 describe('economia da cota: leituras espaçadas', () => {
-  it('bomba lida a cada 10 min em repouso e a cada 2 min perto do horário de irrigação; lista de casas do eWeLink é usada', async () => {
+  it('bomba lida a cada 20 min em repouso e uma conferência pouco antes do horário de irrigação; lista de casas do eWeLink é usada', async () => {
     const mock = createEwelinkMock({ appId: APP_ID, appSecret: APP_SECRET });
     vi.stubGlobal('fetch', (input: RequestInfo, init?: RequestInit) => mock.fetch(input, init));
     mock.state.devices = [switchThing('bomba01', 'Bomba', { state: 'off' })];
+    // relógio fixo na ligação, para a leitura feita ao conectar cair exatamente em T
+    const T = Math.ceil(Date.now() / MIN) * MIN;
+    vi.useFakeTimers({ now: T, toFake: ['Date'] });
     const r = await post('/api/ewelink/authorize', {}, ADMIN);
     const { url } = (await r.json()) as { url: string };
     const login = await mock.handle(new Request(url));
     const cb = new URL(login.headers.get('location')!);
     await call(cb.pathname + cb.search);
+    vi.useRealTimers();
     const c = await getConfig(env.DB);
     c.pump.deviceId = 'bomba01';
     c.automation = { ...c.automation, schedule: [] };
     await saveConfig(env.DB, c, Date.now());
-    const T = Math.floor(Date.now() / MIN) * MIN;
     const polls = () => mock.state.calls.filter((x: string) => x === 'GET /v2/device/thing').length;
-    await runScheduled(env, T);
-    expect(polls()).toBe(1);
+    expect(polls()).toBe(1); // a leitura feita ao conectar
     expect(mock.state.calls).toContain('GET /v2/family');
+    await runScheduled(env, T);
+    expect(polls()).toBe(1); // 10 min ainda não passaram desde a leitura ao conectar
     await runScheduled(env, T + 2 * MIN);
     await runScheduled(env, T + 4 * MIN);
-    await runScheduled(env, T + 8 * MIN);
-    expect(polls()).toBe(1); // em repouso: nada de novo antes de 10 min
-    await runScheduled(env, T + 10 * MIN);
+    await runScheduled(env, T + 18 * MIN);
+    expect(polls()).toBe(1); // em repouso: nada de novo antes de 20 min
+    await runScheduled(env, T + 20 * MIN);
     expect(polls()).toBe(2);
     expect(mock.state.calls.filter((x: string) => x === 'GET /v2/family')).toHaveLength(1); // casas só descobertas uma vez
-    // perto de um horário de irrigação: a cada 2 min
-    const slot = localDateTimeString(T + 12 * MIN).slice(11, 16);
+    // pouco antes de um horário de irrigação: uma conferência
+    const slot = localDateTimeString(T + 24 * MIN).slice(11, 16);
     const c2 = await getConfig(env.DB);
     c2.automation = { ...c2.automation, schedule: [slot], mode: 'protecao' };
     await saveConfig(env.DB, c2, Date.now());
-    await runScheduled(env, T + 12 * MIN);
-    await runScheduled(env, T + 14 * MIN);
-    expect(polls()).toBe(4);
+    await runScheduled(env, T + 22 * MIN);
+    await runScheduled(env, T + 23 * MIN);
+    await runScheduled(env, T + 24 * MIN);
+    expect(polls()).toBe(3); // uma conferência antes do horário, nenhuma depois
   });
 });

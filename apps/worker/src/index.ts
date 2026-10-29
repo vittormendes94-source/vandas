@@ -20,13 +20,12 @@ import type { AppConfig } from '@orq/core';
 /** Passou o intervalo desde a última leitura (com 30 s de folga para o relógio do agendador)? */
 const due = (last: number | null, everyMin: number, now: number) => last === null || now - last >= everyMin * 60_000 - 30_000;
 
-/** Estamos perto de um horário de irrigação (2 min antes até 20 min depois) ou com a bomba ligada? Aí a bomba é lida a cada 2 min. */
-function pumpIsActive(config: AppConfig, now: number, pumpOn: boolean): boolean {
-  if (pumpOn) return true;
+/** Conferência antes de irrigar: nos 2 min que antecedem um horário programado sensores e bomba são lidos uma vez. */
+function preCheck(config: AppConfig, now: number): boolean {
   const nowMin = Number(localDateTimeString(now).slice(11, 13)) * 60 + Number(localDateTimeString(now).slice(14, 16));
   return config.automation.schedule.some((t) => {
     const m = Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-    return nowMin >= m - 2 && nowMin <= m + 20;
+    return nowMin >= m - 2 && nowMin < m;
   });
 }
 
@@ -38,9 +37,10 @@ export async function runScheduled(env: Env, scheduledTime: number, opts: { alwa
     const ewState = await loadEwelinkState(env.DB, scheduledTime);
     const pumpDev = config.pump.deviceId ? (await listProviderDevices(env.DB, PROVIDER)).find((d) => d.deviceId === config.pump.deviceId) : undefined;
     const pumpOn = pumpDev?.switchState === 'on';
-    const doSb = opts.always || due(sbState.lastPollAt, config.polling.sensorsMin, scheduledTime);
-    const everyPump = pumpIsActive(config, scheduledTime, pumpOn) ? 2 : config.polling.pumpIdleMin;
-    const doEw = opts.always || due(ewState.lastPollAt, everyPump, scheduledTime);
+    const pre = preCheck(config, scheduledTime);
+    // bomba ligada: a cada 2 min (para confirmar o desligamento); antes de irrigar: conferência única; senão no ritmo lento
+    const doSb = opts.always || due(sbState.lastPollAt, pre ? 3 : config.polling.sensorsMin, scheduledTime);
+    const doEw = opts.always || due(ewState.lastPollAt, pumpOn ? 2 : pre ? 3 : config.polling.pumpIdleMin, scheduledTime);
     const skipped = { ran: false, reason: 'not_due' } as const;
     const [sb, r] = await Promise.allSettled([doSb ? pollSwitchbot(env, env.DB, config, scheduledTime) : Promise.resolve(skipped), doEw ? pollEwelink(env, env.DB, config, scheduledTime) : Promise.resolve(skipped)]);
     if (sb.status === 'fulfilled' && sb.value.ran && sb.value.reason) logInfo('switchbot', `leitura com falha: ${sb.value.reason}`);

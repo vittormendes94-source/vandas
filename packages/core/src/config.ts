@@ -70,7 +70,7 @@ export const AppConfigSchema = z
     /** Automação da bomba: horários, proteção e limites. */
     automation: AutomationConfigSchema.default(DEFAULT_AUTOMATION),
     /** Frequência de leitura das nuvens (economiza a cota gratuita). A bomba é lida a cada 2 min durante horários de irrigação ou com a bomba ligada. */
-    polling: z.strictObject({ sensorsMin: z.number().int().min(2).max(60), pumpIdleMin: z.number().int().min(2).max(60) }).default({ sensorsMin: 10, pumpIdleMin: 10 }),
+    polling: z.strictObject({ sensorsMin: z.number().int().min(2).max(60), pumpIdleMin: z.number().int().min(2).max(60) }).default({ sensorsMin: 20, pumpIdleMin: 20 }),
     /** Cidade do orquidário, para o clima de fora (Open-Meteo). null = não informada. */
     location: PlaceSchema.nullable().default({ name: 'Patrocínio, Minas Gerais', lat: -18.9439, lon: -46.9925 }),
     retention: z.strictObject({ rawDays: z.number().int().min(7).max(90) }),
@@ -137,7 +137,7 @@ export function defaultConfig(): AppConfig {
     },
     pump: { deviceId: null, outlet: 0, maxRunMin: 5 },
     nightTemperature: { from: '18:00', to: '06:00', limits: { min: null, max: null } },
-    polling: { sensorsMin: 10, pumpIdleMin: 10 },
+    polling: { sensorsMin: 20, pumpIdleMin: 20 },
     irrigationRules: { ...DEFAULT_IRRIGATION_RULES },
     automation: { ...DEFAULT_AUTOMATION, schedule: [] },
     // Cidade informada pelo dono (Patrocínio, MG). Pode ser trocada em Configurações.
