@@ -533,6 +533,8 @@ html.tv button, html.tv a { cursor: pointer; }
 .tvp__list li { display: flex; align-items: baseline; gap: 0.8em; flex-wrap: wrap; padding: 0.35em 0.7em; border-radius: var(--radius-sm); background: var(--card-2); font-size: clamp(13px, 0.92vw, 24px); }
 .tvp__list-when { font-weight: 700; font-variant-numeric: tabular-nums; }
 .tvp__list-dur { color: var(--dim); margin-left: auto; }
+.tvp__list-fx { flex-basis: 100%; font-size: 0.9em; color: var(--dim); }
+.tvp__list-fx b { color: var(--text, #fff); font-variant-numeric: tabular-nums; }
 .tvp__list-running { outline: 2px solid #8fd3ff; }
 .tvp__list-running .tvp__list-dur { color: #8fd3ff; font-weight: 700; }
 .tvp__list-note { width: 100%; color: var(--amber); font-size: 0.75em; }

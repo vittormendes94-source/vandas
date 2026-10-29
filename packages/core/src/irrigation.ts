@@ -43,6 +43,27 @@ export interface IrrigationDto {
   endReason: 'off' | 'sem_sinal' | null;
   /** Duração (fim − início); em andamento: até a última confirmação de "ligada". */
   durationMs: number;
+  /** Medições dos sensores logo antes de ligar e ~1 min depois de desligar (null = ainda não medidas). */
+  before?: IrrigationSnapshot | null;
+  after?: IrrigationSnapshot | null;
+}
+
+export interface IrrigationSnapshot {
+  /** Instante em que o sistema guardou as medições (ISO). */
+  at: string;
+  sensors: { id: string; temperatureC: number; humidityPct: number; measuredAt: string }[];
+}
+
+/** Mudança média entre as medições de antes e de depois (só sensores presentes nas duas). */
+export function irrigationChange(e: Pick<IrrigationDto, 'before' | 'after'>): { dTemp: number; dHum: number; n: number; minutes: number } | null {
+  if (!e.before || !e.after) return null;
+  const pairs = e.before.sensors.flatMap((b) => {
+    const a = e.after!.sensors.find((x) => x.id === b.id);
+    return a ? [{ dt: a.temperatureC - b.temperatureC, dh: a.humidityPct - b.humidityPct }] : [];
+  });
+  if (!pairs.length) return null;
+  const mean = (v: number[]) => v.reduce((s, x) => s + x, 0) / v.length;
+  return { dTemp: mean(pairs.map((p) => p.dt)), dHum: mean(pairs.map((p) => p.dh)), n: pairs.length, minutes: Math.max(0, Math.round((Date.parse(e.after.at) - Date.parse(e.before.at)) / 60_000)) };
 }
 
 export interface IrrigationsSummary {

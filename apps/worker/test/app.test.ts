@@ -331,7 +331,7 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     vi.useRealTimers();
     await tick(T0 + 8 * MIN, 'off');
     const r = (await (await call(`/api/irrigations?from=${iso(T0 - DAY)}&to=${iso(T0 + DAY)}`)).json()) as { events: { startedAt: string; endedAt: string; durationMs: number; endReason: string }[] };
-    expect(r.events).toEqual([{ startedAt: iso(T0 + 2 * MIN), endedAt: iso(T0 + 8 * MIN), lastOnAt: iso(T0 + 6 * MIN), endReason: 'off', durationMs: 6 * MIN }]);
+    expect(r.events).toEqual([{ startedAt: iso(T0 + 2 * MIN), endedAt: iso(T0 + 8 * MIN), lastOnAt: iso(T0 + 6 * MIN), endReason: 'off', durationMs: 6 * MIN, before: null, after: null }]);
 
     // Segunda irrigação: o Sonoff some no meio. Antes de 30 min nada é fechado; depois, fecha no último "ligada" visto.
     await tick(T0 + 20 * MIN, 'on');
@@ -910,5 +910,27 @@ describe('economia da cota: leituras espaçadas', () => {
     await runScheduled(env, T + 23 * MIN);
     await runScheduled(env, T + 24 * MIN);
     expect(polls()).toBe(3); // uma conferência antes do horário, nenhuma depois
+  });
+});
+
+describe('irrigação: medições de antes e depois', () => {
+  it('guarda os sensores ao ligar e 1 min depois de desligar', async () => {
+    const { trackIrrigation, pendingAfter, saveAfter, recentIrrigations } = await import('../src/irrigation');
+    const { derivePumpStatus } = await import('@orq/core');
+    const config = await getConfig(env.DB);
+    const id = config.sensors[0]!.id;
+    const T0 = Date.now() - 30 * MIN;
+    const rd = (m: number, t: number, h: number) => ({ sensorId: id, measuredAt: m, receivedAt: m, timeBasis: 'source' as const, temperatureC: t, humidityPct: h, batteryPct: null, linkQuality: null, rssiDbm: null, source: 'test' });
+    await persistReadings(env.DB, [rd(T0 - MIN, 28, 70)]);
+    const pump = (state: 'on' | 'off', at: number) => derivePumpStatus({ linked: true, seenAt: at, online: true, switchState: state }, at);
+    await trackIrrigation(env.DB, pump('on', T0), T0, config);
+    await trackIrrigation(env.DB, pump('off', T0 + 5 * MIN), T0 + 5 * MIN, config);
+    expect(await pendingAfter(env.DB, T0 + 5 * MIN + 61_000)).toMatchObject({ startedAt: T0 });
+    await persistReadings(env.DB, [rd(T0 + 6 * MIN, 26, 82)]);
+    await saveAfter(env.DB, config, T0, T0 + 7 * MIN);
+    expect(await pendingAfter(env.DB, T0 + 8 * MIN)).toBeNull();
+    const [e] = await recentIrrigations(env.DB, 1);
+    expect(e!.before!.sensors[0]).toMatchObject({ temperatureC: 28, humidityPct: 70 });
+    expect(e!.after!.sensors[0]).toMatchObject({ temperatureC: 26, humidityPct: 82 });
   });
 });

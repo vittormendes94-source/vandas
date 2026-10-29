@@ -118,3 +118,13 @@ describe('média com último valor mantido', () => {
     expect(p[0]!.v).toBe(21);
   });
 });
+
+describe('irrigationChange', () => {
+  const snap = (at: string, s: [string, number, number][]) => ({ at, sensors: s.map(([id, t, h]) => ({ id, temperatureC: t, humidityPct: h, measuredAt: at })) });
+  it('média das mudanças por sensor e minutos entre antes e depois', async () => {
+    const { irrigationChange } = await import('../src/irrigation');
+    const r = irrigationChange({ before: snap('2026-10-29T10:00:00Z', [['a', 28, 70], ['b', 30, 60]]), after: snap('2026-10-29T10:08:00Z', [['a', 26, 80], ['b', 29, 70], ['c', 1, 1]]) });
+    expect(r).toEqual({ dTemp: -1.5, dHum: 10, n: 2, minutes: 8 });
+    expect(irrigationChange({ before: null, after: null })).toBeNull();
+  });
+});
