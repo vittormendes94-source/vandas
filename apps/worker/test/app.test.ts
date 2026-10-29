@@ -299,7 +299,7 @@ describe('eWeLink ponta a ponta (servidor que reproduz a API documentada)', () =
     await link((c) => void (c.pump.deviceId = 'bomba01'));
     await pollEwelink(env, env.DB, await getConfig(env.DB), Date.now());
     mock.state.quota = true;
-    const later = Date.now() + 40 * MIN;
+    const later = Date.now() + 100 * MIN;
     expect(await pollEwelink(env, env.DB, await getConfig(env.DB), later)).toMatchObject({ ran: true, reason: 'quota' });
     const l = await live();
     expect(l.integration.ewelink.lastError?.code).toBe('quota');
