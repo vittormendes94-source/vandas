@@ -93,6 +93,8 @@ export interface EwelinkListDto {
   total: number | null;
   returned: number;
   types: Record<string, number>;
+  /** Resultado da consulta direta do Sonoff da bomba pelo ID: 'ok' ou a mensagem de erro; null = não foi preciso. */
+  byId?: string | null;
 }
 
 export interface IntegrationStatusDto {
