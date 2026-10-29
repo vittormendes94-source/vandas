@@ -119,6 +119,8 @@ export interface AppConfig {
     humidityBelowPct: number | null;
     syncInching: boolean;
   };
+  /** Minutos entre leituras das nuvens (sensores; bomba em repouso). */
+  polling: { sensorsMin: number; pumpIdleMin: number };
   /** Cidade do orquidário (clima de fora). null = não informada. */
   location: { name: string; lat: number; lon: number } | null;
   retention: {

@@ -25,7 +25,7 @@ export interface PumpStatus {
   seenAt: number | null;
 }
 
-export const PUMP_STALE_MIN = 10;
+export const PUMP_STALE_MIN = 15;
 
 export function derivePumpStatus(input: PumpInput, nowMs: number, staleMin = PUMP_STALE_MIN): PumpStatus {
   const { linked, seenAt, online, switchState } = input;

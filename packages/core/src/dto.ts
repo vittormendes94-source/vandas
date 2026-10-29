@@ -51,6 +51,8 @@ export interface EwelinkStatusDto {
   consecutiveFailures: number;
   callsThisMonth: number;
   monthlyLimit: number;
+  /** Última lista de aparelhos devolvida pelo eWeLink. */
+  lastList: EwelinkListDto | null;
   accessExpiresAt: string | null;
   refreshExpiresAt: string | null;
   /** Validade da credencial de desenvolvedor pessoal (1 ano), se informada no servidor. */
@@ -84,6 +86,13 @@ export interface SwitchbotStatusDto {
   consecutiveFailures: number;
   callsToday: number;
   dailyLimit: number;
+}
+
+/** O que o eWeLink devolveu na última leitura (diagnóstico). */
+export interface EwelinkListDto {
+  total: number | null;
+  returned: number;
+  types: Record<string, number>;
 }
 
 export interface IntegrationStatusDto {

@@ -126,6 +126,13 @@ export function About({ live, meta, nowMs }: { live: LiveState & { refresh: () =
                 {fmtNum(usage * 100, 0)} % da cota gratuita
               </div>
             </div>
+              {eu.lastList && (
+                <div>
+                  <div className="tiny mute">Aparelhos que o eWeLink informou</div>
+                  <div className="strong">{eu.lastList.returned}{eu.lastList.total !== null && eu.lastList.total !== eu.lastList.returned ? ` de ${eu.lastList.total}` : ''}</div>
+                  <div className="tiny mute">{Object.entries(eu.lastList.types).map(([k, v]) => `${v}× ${k}`).join(' · ')}</div>
+                </div>
+              )}
             <div>
               <div className="tiny mute">Autorização (renovada automaticamente)</div>
               <b>{eu.refreshExpiresAt ? `até ${formatDateTime(Date.parse(eu.refreshExpiresAt)).slice(0, 10)}` : '—'}</b>
