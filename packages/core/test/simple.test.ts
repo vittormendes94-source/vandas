@@ -80,7 +80,7 @@ describe('visão simples', () => {
     const base = { seenAt: new Date(NOW - MIN).toISOString(), deviceName: 'Bomba' };
     expect(simplePump({ ...base, comm: 'ok', state: 'on' }, NOW).tone).toBe('on');
     expect(simplePump({ ...base, comm: 'ok', state: 'off' }, NOW).tone).toBe('off');
-    expect(simplePump({ ...base, comm: 'offline', state: 'unknown' }, NOW)).toMatchObject({ tone: 'unknown', label: 'Bomba: sem informação' });
+    expect(simplePump({ ...base, comm: 'offline', state: 'unknown' }, NOW)).toMatchObject({ tone: 'unknown', label: 'Bomba sem comunicação' });
     expect(simplePump({ ...base, comm: 'not_linked', state: 'unknown' }, NOW).tone).toBe('none');
   });
 
