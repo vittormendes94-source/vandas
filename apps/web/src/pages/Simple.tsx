@@ -35,16 +35,15 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState & { refresh?: 
   const data = live.data;
   const refreshLive = live.refresh;
   // Bomba quase em tempo real sem gastar cota: o servidor só lê o eWeLink quando alguém abre/volta ao painel
-  // (e a cada 5 min com a tela visível), no máximo 1 leitura a cada 20 s.
+  // no máximo 1 leitura a cada 20 s.
   useEffect(() => {
     const ping = () => {
       if (document.visibilityState === 'hidden') return;
       api.pumpRefresh().then((r) => { if (r.ran) refreshLive?.(); }).catch(() => {});
     };
     ping();
-    const id = setInterval(ping, 5 * MIN);
     document.addEventListener('visibilitychange', ping);
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', ping); };
+    return () => document.removeEventListener('visibilitychange', ping);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const config = data?.config ?? null;
@@ -351,7 +350,7 @@ function IrrigationColumn({
             <div className="tvp__empty">Nenhuma irrigação registrada ainda.</div>
           ) : (
             <ol className="tvp__list">
-              {summary.last.slice(0, automation.mode === 'desligado' ? 3 : 2).map((e) => {
+              {summary.last.slice(0, 5).map((e) => {
                 const start = Date.parse(e.startedAt);
                 const running = e.endedAt === null;
                 return (

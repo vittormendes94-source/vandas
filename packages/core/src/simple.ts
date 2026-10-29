@@ -126,8 +126,8 @@ export interface SimplePump {
 export function simplePump(p: PumpDto, nowMs: number): SimplePump {
   if (p.comm === 'not_linked') return { tone: 'none', label: 'Bomba não conectada', detail: 'Ainda não ligada ao painel.' };
   if (p.comm === 'ok' && p.state === 'on') return { tone: 'on', label: 'Bomba LIGADA', detail: p.seenAt ? `Confirmado ${formatAge(nowMs - Date.parse(p.seenAt))}` : '' };
-  if (p.comm === 'ok' && p.state === 'off') return { tone: 'off', label: 'Bomba desligada', detail: p.seenAt ? `Confirmado ${formatAge(nowMs - Date.parse(p.seenAt))}` : '' };
-  return { tone: 'unknown', label: 'Bomba: sem informação', detail: p.comm === 'offline' ? 'O Sonoff está fora do ar.' : 'Sem confirmação recente do Sonoff.' };
+  if (p.comm === 'ok' && p.state === 'off') return { tone: 'off', label: 'Bomba conectada', detail: p.seenAt ? `Verificada ${formatAge(nowMs - Date.parse(p.seenAt))}` : '' };
+  return { tone: 'unknown', label: 'Bomba sem comunicação', detail: p.comm === 'offline' ? 'O interruptor está fora do ar.' : 'Sem verificação recente do interruptor.' };
 }
 
 /** Mínima e máxima de hoje a partir das séries do histórico (bruto: [t, temp, umid, ...]). */
