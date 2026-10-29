@@ -828,6 +828,28 @@ describe('avisos no celular (Web Push)', () => {
   });
 });
 
+describe('atualização da bomba a pedido do painel', () => {
+  it('lê o eWeLink ao abrir o painel e limita a 1 leitura a cada 20 s', async () => {
+    const mock = createEwelinkMock({ appId: APP_ID, appSecret: APP_SECRET });
+    vi.stubGlobal('fetch', (input: RequestInfo, init?: RequestInit) => mock.fetch(input, init));
+    mock.state.devices = [switchThing('bomba01', 'Bomba', { state: 'off' })];
+    const r = await post('/api/ewelink/authorize', {}, ADMIN);
+    const { url } = (await r.json()) as { url: string };
+    const login = await mock.handle(new Request(url));
+    const cb = new URL(login.headers.get('location')!);
+    await call(cb.pathname + cb.search);
+    const c = await getConfig(env.DB);
+    c.pump.deviceId = 'bomba01';
+    await saveConfig(env.DB, c, Date.now());
+    vi.useFakeTimers({ now: Date.now() + 60_000, toFake: ['Date'] });
+    const first = await (await post('/api/pump/refresh', {}, VIEW)).json();
+    expect(first).toMatchObject({ ran: true });
+    const again = await (await post('/api/pump/refresh', {}, VIEW)).json();
+    expect(again).toMatchObject({ ran: false, reason: 'recent' });
+    vi.useRealTimers();
+  });
+});
+
 describe('bomba compartilhada fora da lista', () => {
   it('consulta o Sonoff pelo ID informado quando a lista não o devolve', async () => {
     const mock = createEwelinkMock({ appId: APP_ID, appSecret: APP_SECRET });

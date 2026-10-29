@@ -4,7 +4,7 @@ import { ConfigUpdateSchema, IngestReadingsBodySchema, ZigbeeIngestBodySchema, i
 import type { HistoryResponse, LiveResponse, ProviderDeviceDto, ReadingOutcome, SensorLinkDto } from '@orq/core';
 import { requireAdmin, requireIngest, requireView } from './auth';
 import type { Env } from './env';
-import { PROVIDER, buildAuthorizeUrl, disconnect, handleCallback, pollEwelink, statusDto } from './ewelink';
+import { PROVIDER, buildAuthorizeUrl, disconnect, handleCallback, loadState as loadEwelinkState, pollEwelink, statusDto } from './ewelink';
 import { HttpError } from './http';
 import { logError } from './logging';
 import {
@@ -189,6 +189,18 @@ app.get('/api/ewelink/callback', async (c) => {
 
 /** Lê os sensores SwitchBot agora (além da leitura automática a cada 2 min); também relê a lista de aparelhos. */
 app.post('/api/switchbot/poll', requireAdmin, async (c) => c.json(await pollSwitchbot(c.env, c.env.DB, await getConfig(c.env.DB), Date.now(), { force: true })));
+
+/** Atualiza o estado da bomba a pedido de quem está olhando o painel (no máx. 1 leitura a cada 20 s). */
+app.post('/api/pump/refresh', requireView, async (c) => {
+  const now = Date.now();
+  const config = await getConfig(c.env.DB);
+  if (!config.pump.deviceId) return c.json({ ran: false, reason: 'no_pump' });
+  const st = await loadEwelinkState(c.env.DB, now);
+  if (st.lastPollAt !== null && now - st.lastPollAt < 20_000) return c.json({ ran: false, reason: 'recent' });
+  const r = await pollEwelink(c.env, c.env.DB, config, now);
+  await trackPumpFromDb(c.env.DB, config, PROVIDER, now);
+  return c.json(r);
+});
 
 /** Lê o eWeLink agora (além da leitura automática). */
 app.post('/api/ewelink/poll', requireAdmin, async (c) => {
