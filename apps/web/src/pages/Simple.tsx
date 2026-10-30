@@ -136,6 +136,10 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState & { refresh?: 
         </div>
         <OutdoorNow w={weather} />
         <div className="tvp__right">
+          <span className={`tvp__pumpbadge tvp__pumpbadge--${pump.tone === 'unknown' ? 'bad' : pump.tone === 'none' ? 'none' : 'ok'}`}>
+            <i aria-hidden="true" />
+            {pump.tone === 'on' ? 'Bomba ligada' : pump.tone === 'off' ? 'Bomba conectada' : pump.tone === 'none' ? 'Bomba não vinculada' : 'Bomba desconectada'}
+          </span>
           <Clock nowMs={nowMs} />
           <div className="tvp__updated">{snap.lastMeasuredAt ? `Última leitura ${formatAge(nowMs - snap.lastMeasuredAt)}` : 'Sem leituras ainda'}</div>
           <PushToggle />
@@ -315,17 +319,6 @@ function IrrigationColumn({
         <SprinklerIcon />
         Irrigação
       </div>
-      <div className={`tvp__pump tvp__pump--${pump.tone}${overrun ? ' tvp__pump--over' : ''}`}>
-        <svg className="tvp__pump-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 2.5c-3.6 4.6-6.5 8.3-6.5 11.6A6.5 6.5 0 0 0 12 20.6a6.5 6.5 0 0 0 6.5-6.5C18.5 10.8 15.6 7.1 12 2.5z" fill="currentColor" />
-        </svg>
-        <div>
-          <div className="tvp__pump-label">{pump.label}</div>
-          <div className="tvp__small">{overrun ? `Passou do tempo previsto (${maxRunMin} min)` : pump.detail}</div>
-        </div>
-      </div>
-
-      <AdviceCard advice={advice} automation={automation} nowMs={nowMs} />
       <AutomationCard a={automation} />
 
       {pump.tone === 'none' && summary.last.length === 0 ? (
@@ -390,74 +383,24 @@ function IrrigationEffect({ e }: { e: IrrigationsSummary['last'][number] }) {
 /** Automação: modo, o que está fazendo e os horários de hoje. */
 function AutomationCard({ a }: { a: AutomationStatusDto }) {
   if (a.mode === 'desligado') return null;
-  const title = a.mode === 'automatico' ? 'Irrigação automática' : 'Proteção automática';
   const failed = a.lastCommand && !a.lastCommand.ok;
-  const line = a.blockedBy ?? (failed ? `Falha ao ${a.lastCommand!.action === 'on' ? 'ligar' : 'desligar'}: ${a.lastCommand!.error}` : a.note);
   const label = { pendente: '', feito: '✓', adiado: 'adiada', pulado: 'pulada' } as const;
   return (
-    <div className={`tvp__auto${a.ready ? '' : ' tvp__auto--wait'}${failed ? ' tvp__auto--fail' : ''}`}>
-      <div className="tvp__auto-title">
-        <span className="tvp__auto-dot" aria-hidden="true" />
-        {title}
+    <div className={`tvp__auto tvp__auto--line${a.ready ? '' : ' tvp__auto--wait'}${failed ? ' tvp__auto--fail' : ''}`}>
+      <span className="tvp__auto-dot" aria-hidden="true" />
+      <span className="tvp__auto-title">Automático</span>
+      <div className="tvp__auto-slots">
+        {a.slots.map((s) => (
+          <span key={s.time} className={`tvp__slot tvp__slot--${s.status}`} title={s.detail ?? undefined}>
+            {s.time} {label[s.status]}
+          </span>
+        ))}
       </div>
-      {line && <div className="tvp__auto-note">{line}</div>}
-      {a.slots.length > 0 && (
-        <div className="tvp__auto-slots">
-          {a.slots.map((s) => (
-            <span key={s.time} className={`tvp__slot tvp__slot--${s.status}`} title={s.detail ?? undefined}>
-              {s.time} {label[s.status]}
-            </span>
-          ))}
-        </div>
-      )}
+      {failed && <span className="tvp__auto-note">falha ao {a.lastCommand!.action === 'on' ? 'ligar' : 'desligar'}</span>}
     </div>
   );
 }
 
-/** "Pode irrigar agora?" pelas regras do dono (Configurações → Regras de irrigação). */
-function AdviceCard({ advice, automation, nowMs }: { advice: IrrigationAdvice; automation: AutomationStatusDto; nowMs: number }) {
-  // No modo automático, "pode irrigar" também depende dos horários: fora deles, mostra o próximo.
-  const nowHm = new Date(nowMs).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-  const slots = automation.mode === 'automatico' ? automation.slots : [];
-  const inSlot = slots.some((s) => (s.status === 'pendente' || s.status === 'adiado') && toMin(nowHm) >= toMin(s.time) && toMin(nowHm) - toMin(s.time) <= 30);
-  const nextSlot = slots.map((s) => s.time).find((t) => toMin(t) > toMin(nowHm)) ?? (slots[0] ? `amanhã ${slots[0].time}` : null);
-  if (advice.state !== 'no' && slots.length > 0 && !inSlot) {
-    return (
-      <div className="tvp__advice tvp__advice--unknown" role="status">
-        <svg className="tvp__advice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12 7.5V12l3 2M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17z" />
-        </svg>
-        <div>
-          <div className="tvp__advice-title">Fora do horário de irrigação</div>
-          <div className="tvp__advice-detail">{advice.state === 'ok' ? 'Temperatura e sol dentro das regras' : 'Regras sem dados agora'}</div>
-          {nextSlot && <div className="tvp__advice-next">Próxima irrigação: {nextSlot}</div>}
-        </div>
-      </div>
-    );
-  }
-  const title = { ok: 'Pode irrigar agora', no: 'Não irrigar agora', unknown: 'Regras sem dados agora' }[advice.state];
-  const icon = { ok: 'M5 12.5l4.5 4.5L19 7.5', no: 'M7 7l10 10M17 7L7 17', unknown: 'M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17.5v.1' }[advice.state];
-  const detail =
-    advice.state === 'no'
-      ? advice.reasons
-      : advice.state === 'ok'
-        ? [advice.missing.length ? `Dentro das regras que deu para avaliar (${advice.missing.join(', ')})` : 'Temperatura e sol dentro das regras']
-        : [advice.missing.join(' · ') || 'Nenhuma regra definida em Configurações'];
-  const next = advice.state !== 'no' ? null : advice.nextGood ? `Próximo horário bom: ${advice.nextGood}` : advice.reasons.every((r) => r.startsWith('Estufa')) ? 'Aguarde a estufa esfriar' : null;
-  return (
-    <div className={`tvp__advice tvp__advice--${advice.state}`} role="status">
-      <svg className="tvp__advice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d={icon} />
-      </svg>
-      <div>
-        <div className="tvp__advice-title">{title}</div>
-        <div className="tvp__advice-detail">{detail.join(' · ')}</div>
-        {next && <div className="tvp__advice-next">{next}</div>}
-      </div>
-    </div>
-  );
-}
 
 /** Linha das últimas 24 h (média dos sensores). Trechos sem todos os sensores ficam em branco, como no painel. */
 /**

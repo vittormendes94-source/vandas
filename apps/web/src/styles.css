@@ -714,3 +714,12 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
 .tvp__spark-yaxis span { position: absolute; right: 0.3em; transform: translateY(-50%); font-size: clamp(10px, 0.65vw, 16px); color: var(--mute); font-variant-numeric: tabular-nums; }
 .tvp__spark-tip { position: absolute; transform: translate(-50%, calc(-100% - 10px)); display: flex; flex-direction: column; align-items: center; padding: 0.2em 0.55em; border-radius: 6px; background: rgba(7,13,17,0.92); border: 1px solid rgba(255,255,255,0.25); font-size: clamp(11px, 0.75vw, 18px); color: var(--dim); white-space: nowrap; pointer-events: none; z-index: 2; }
 .tvp__spark-tip b { color: var(--text); font-size: 1.15em; }
+
+/* Bomba no cabeçalho: verde conectada, vermelha desconectada. */
+.tvp__pumpbadge { display: inline-flex; align-items: center; gap: 0.45em; font-weight: 700; font-size: 0.8em; padding: 0.1em 0.7em; border-radius: 999px; background: var(--card-2); }
+.tvp__pumpbadge i { width: 0.65em; height: 0.65em; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.2); }
+.tvp__pumpbadge--bad { color: #ff8f8f; }
+.tvp__pumpbadge--bad i { background: var(--red); box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.25); }
+.tvp__pumpbadge--none { color: var(--dim); }
+.tvp__pumpbadge--none i { background: var(--mute); box-shadow: none; }
+.tvp__auto--line { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 0.5em; }
