@@ -723,3 +723,20 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
 .tvp__pumpbadge--none { color: var(--dim); }
 .tvp__pumpbadge--none i { background: var(--mute); box-shadow: none; }
 .tvp__auto--line { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 0.5em; }
+
+/* Cabeçalho em 3 regiões: status à esquerda, nome do orquidário ao centro, clima/bomba/hora/botões à direita. */
+.tvp__status { grid-template-columns: 1fr auto 1fr !important; }
+.tvp__left { min-width: 0; }
+.tvp__title { display: flex; align-items: center; justify-content: center; gap: 0.5em; font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif; font-style: italic; font-weight: 700; font-size: clamp(22px, 2.1vw, 54px); letter-spacing: 0.01em; color: #ffd6f0; white-space: nowrap; }
+.tvp__flower { width: 1.4em; height: 1.4em; flex: none; }
+.tvp__right { justify-content: flex-end; }
+.tvp__timeblock { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15em; }
+.tvp__timeblock .tvp__updated { font-size: clamp(10px, 0.66vw, 16px); }
+.tvp__btns { display: flex; flex-direction: column; align-items: stretch; gap: 0.3em; }
+.tvp__btns .btn { width: 100%; justify-content: center; white-space: nowrap; }
+.tvp__clock { flex-direction: column !important; align-items: flex-end !important; gap: 0.1em !important; }
+@media (max-width: 1099px) {
+  .tvp__status { grid-template-columns: 1fr !important; }
+  .tvp__title { order: -1; font-size: 24px; }
+  .tvp__right { justify-content: space-between; }
+}
