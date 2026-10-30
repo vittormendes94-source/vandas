@@ -115,13 +115,8 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState & { refresh?: 
   return (
     <main className="tvp">
       <header className={`tvp__status tvp__status--${status.level}`} role="status">
-        <div className="tvp__logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 21V11M12 11c0-4 2.5-6.5 7-7-.2 4.6-2.8 7-7 7zM12 14c0-3-2-5-6.5-5.5C5.8 12 8 14 12 14z" />
-          </svg>
-        </div>
-        <div className="tvp__status-text">
-          <div className="tvp__brand">Orquidário Inteligente</div>
+        <div className="tvp__left">
+          <div className="tvp__status-text">
           <div className="tvp__headline">
             <span className="tvp__status-icon" aria-hidden="true">
               <StatusIcon level={status.level} />
@@ -133,19 +128,28 @@ export function Simple({ live, nowMs, onFull }: { live: LiveState & { refresh?: 
               <span key={d}>{d}</span>
             ))}
           </div>
+          </div>
         </div>
-        <OutdoorNow w={weather} />
+        <div className="tvp__title" aria-label="Recanto das Orquídeas">
+          <OrchidFlower />
+          <span>Recanto das Orquídeas</span>
+        </div>
         <div className="tvp__right">
+          <OutdoorNow w={weather} />
           <span className={`tvp__pumpbadge tvp__pumpbadge--${pump.tone === 'unknown' ? 'bad' : pump.tone === 'none' ? 'none' : 'ok'}`}>
             <i aria-hidden="true" />
             {pump.tone === 'on' ? 'Bomba ligada' : pump.tone === 'off' ? 'Bomba conectada' : pump.tone === 'none' ? 'Bomba não vinculada' : 'Bomba desconectada'}
           </span>
-          <Clock nowMs={nowMs} />
-          <div className="tvp__updated">{snap.lastMeasuredAt ? `Última leitura ${formatAge(nowMs - snap.lastMeasuredAt)}` : 'Sem leituras ainda'}</div>
-          <PushToggle />
-          <button type="button" className="btn btn--sm hide-tv" onClick={onFull}>
-            Painel completo
-          </button>
+          <div className="tvp__timeblock">
+            <Clock nowMs={nowMs} />
+            <div className="tvp__updated">{snap.lastMeasuredAt ? `Última leitura ${formatAge(nowMs - snap.lastMeasuredAt)}` : 'Sem leituras ainda'}</div>
+          </div>
+          <div className="tvp__btns">
+            <PushToggle />
+            <button type="button" className="btn btn--sm hide-tv" onClick={onFull}>
+              Painel completo
+            </button>
+          </div>
         </div>
       </header>
 
@@ -577,6 +581,23 @@ function Clock({ nowMs }: { nowMs: number }) {
       <span className="tvp__time">{d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}</span>
       <span className="tvp__date">{capitalize(d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long' }))}</span>
     </div>
+  );
+}
+
+/** Flor de orquídea (5 pétalas) para o nome do orquidário. */
+function OrchidFlower() {
+  return (
+    <svg className="tvp__flower" viewBox="0 0 48 48" aria-hidden="true">
+      <g transform="translate(24 24)">
+        <ellipse cx="0" cy="-14" rx="7" ry="11" fill="#f48fd0" />
+        <ellipse cx="0" cy="-14" rx="7" ry="11" fill="#e86bbd" transform="rotate(72)" />
+        <ellipse cx="0" cy="-14" rx="7" ry="11" fill="#f48fd0" transform="rotate(144)" />
+        <ellipse cx="0" cy="-14" rx="7" ry="11" fill="#e86bbd" transform="rotate(216)" />
+        <ellipse cx="0" cy="-14" rx="7" ry="11" fill="#f48fd0" transform="rotate(288)" />
+        <ellipse cx="0" cy="3" rx="6" ry="7" fill="#fff3b0" />
+        <circle cx="0" cy="-2" r="2.4" fill="#c2409a" />
+      </g>
+    </svg>
   );
 }
 
