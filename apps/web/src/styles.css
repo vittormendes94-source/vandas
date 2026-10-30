@@ -635,12 +635,10 @@ html.tv button, html.tv a { cursor: pointer; }
   .tvp { height: 100vh; overflow: hidden; }
   .tvp__list { overflow: hidden; }
 }
-/* Telas largas e baixas (notebook): o mapa tem prioridade; gráfico de 24 h e lista ficam no Painel completo/Histórico. */
+/* Telas largas e baixas (notebook): o mapa tem prioridade; a lista de irrigações mostra só as 3 últimas. */
 @media (min-width: 1100px) and (max-height: 1000px) {
-  .tvp__col--irr .tvp__list-title,
-  .tvp__col--irr .tvp__list,
-  .tvp__col--irr .tvp__empty,
   .tvp__col--irr .tvp__footnote { display: none; }
+  .tvp__col--irr .tvp__list li:nth-child(n + 4) { display: none; }
   .tvp__fc-days li { padding: 0.25em 0.6em; }
   .tvp__fc-icon { width: clamp(28px, 2.1vw, 50px); height: clamp(28px, 2.1vw, 50px); }
 }
